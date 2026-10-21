@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71dff1c056b14eb2ab45d5f821dc213d, type: 3}
+  m_Name: SampleCharacter
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.CharacterData
+  characterId: sample_character
+  displayName: "샘플 파일럿"
+  description: "능력치 편집을 위한 샘플 파일럿입니다. 아직 전투에는 연결하지 않았습니다."
+  initialLevel: 1
+  shooting: 0
+  melee: 0
+  technique: 0
+  evasion: 0

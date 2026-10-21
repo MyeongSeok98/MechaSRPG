@@ -1,0 +1,6 @@
+{
+  "name": "MechaXCOM.TestSupport",
+  "rootNamespace": "MechaXCOM.Tests",
+  "references": ["MechaXCOM.Runtime"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

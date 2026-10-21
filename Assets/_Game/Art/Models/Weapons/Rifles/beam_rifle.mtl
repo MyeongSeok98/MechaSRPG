@@ -1,0 +1,69 @@
+newmtl body
+Kd 0.23 0.28 0.34
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 53.0
+illum 2
+
+newmtl panel
+Kd 0.37 0.43 0.49
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 51.2
+illum 2
+
+newmtl edge
+Kd 0.53 0.59 0.62
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 54.8
+illum 2
+
+newmtl joint
+Kd 0.1 0.13 0.16
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 35.0
+illum 2
+
+newmtl recess
+Kd 0.02 0.03 0.038
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 21.5
+illum 2
+
+newmtl steel
+Kd 0.47 0.53 0.55
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 62.0
+illum 2
+
+newmtl gold
+Kd 0.64 0.47 0.16
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 60.2
+illum 2
+
+newmtl visor
+Kd 0.045 0.67 0.42
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 77.3
+illum 2
+
+newmtl red
+Kd 0.68 0.11 0.045
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 49.4
+illum 2
+
+newmtl white
+Kd 0.85 0.86 0.81
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 46.7
+illum 2

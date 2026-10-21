@@ -1,0 +1,7 @@
+{
+  "name": "MechaXCOM.Runtime",
+  "rootNamespace": "MechaXCOM",
+  "references": ["Unity.InputSystem"],
+  "autoReferenced": true
+}
+

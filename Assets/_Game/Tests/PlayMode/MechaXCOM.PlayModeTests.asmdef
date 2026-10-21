@@ -1,0 +1,6 @@
+{
+  "name": "MechaXCOM.PlayModeTests",
+  "rootNamespace": "MechaXCOM.Tests",
+  "references": ["MechaXCOM.Runtime", "MechaXCOM.TestSupport", "Unity.InputSystem"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

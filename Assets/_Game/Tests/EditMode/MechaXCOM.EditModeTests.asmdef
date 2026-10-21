@@ -1,0 +1,7 @@
+{
+  "name": "MechaXCOM.EditModeTests",
+  "rootNamespace": "MechaXCOM.Tests",
+  "references": ["MechaXCOM.Runtime", "MechaXCOM.TestSupport", "MechaXCOM.Editor"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

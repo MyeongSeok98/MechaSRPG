@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 397f506c78190a7478158c58e5b1b2fd, type: 3}
+  m_Name: BodyTargetArt
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.BodyTargetArt
+  images:
+  - {fileID: 2800000, guid: 23e56c81a20d9944989614acb6c07751, type: 3}
+  - {fileID: 2800000, guid: 52a9bee24091c9a42a537ac8ce2999b5, type: 3}
+  - {fileID: 2800000, guid: 8268983d35ee4a54aab69a73c8cac88c, type: 3}
+  - {fileID: 2800000, guid: 56467be6ef0db2f45addf41472107f0f, type: 3}
+  - {fileID: 2800000, guid: 5c6b85c104df8a74fbf4226ebfb5fbf4, type: 3}
+  - {fileID: 2800000, guid: 7987ceb1a4bc1a948b2d1bee53db72f3, type: 3}
+  - {fileID: 2800000, guid: 2d9ab1863729869499e050e199425749, type: 3}
+  - {fileID: 2800000, guid: 05afff1aca2d6144999ddbb2cff92ca6, type: 3}

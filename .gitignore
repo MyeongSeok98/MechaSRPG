@@ -1,0 +1,7 @@
+/Library/
+/Logs/
+/UserSettings/
+/.vs/
+/Artifacts/
+*.csproj
+*.slnx

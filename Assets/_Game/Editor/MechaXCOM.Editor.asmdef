@@ -1,0 +1,7 @@
+{
+  "name": "MechaXCOM.Editor",
+  "rootNamespace": "MechaXCOM.Editor",
+  "references": ["MechaXCOM.Runtime"],
+  "includePlatforms": ["Editor"]
+}
+

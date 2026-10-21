@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0d06b3f74eb9f24d99d4cf62a3c7a2d, type: 3}
+  m_Name: MS115Rifle
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.WeaponData
+  displayName: MS-115 Rifle
+  description: "MS115 \uC800\uACA9 \uB77C\uC774\uD50C"
+  attackType: 0
+  rangedCategory: 1
+  meleeCategory: 0
+  minDamage: 3
+  maxDamage: 9
+  baseHitChance: 75
+  range: 10
+  apCost: 5
+  weightTonnes: 1.5
+  gripRequirement: 1
+  twoHandHitMultiplier: 1.1
+  distanceBands:
+  - MaxDistance: 4
+    Multiplier: 0.75
+  - MaxDistance: 7
+    Multiplier: 1.1
+  - MaxDistance: 9
+    Multiplier: 1

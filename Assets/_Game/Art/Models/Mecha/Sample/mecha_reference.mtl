@@ -1,0 +1,69 @@
+newmtl sand
+Kd 0.72 0.62 0.43
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 40.4
+illum 2
+
+newmtl sand_light
+Kd 0.84 0.74 0.53
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 44.0
+illum 2
+
+newmtl sand_dark
+Kd 0.55 0.46 0.3
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 35.0
+illum 2
+
+newmtl red
+Kd 0.58 0.095 0.027
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 47.6
+illum 2
+
+newmtl red_light
+Kd 0.72 0.15 0.044
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 45.8
+illum 2
+
+newmtl joint
+Kd 0.125 0.145 0.17
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 45.8
+illum 2
+
+newmtl recess
+Kd 0.038 0.042 0.045
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 23.3
+illum 2
+
+newmtl steel
+Kd 0.31 0.36 0.39
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 56.6
+illum 2
+
+newmtl visor
+Kd 0.016 0.43 0.48
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 78.2
+illum 2
+
+newmtl white
+Kd 0.91 0.88 0.73
+Ka 0.04 0.04 0.04
+Ks 0.15 0.15 0.15
+Ns 45.8
+illum 2

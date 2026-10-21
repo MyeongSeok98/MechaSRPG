@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac3af83dfc034742a429ca20fc827fee, type: 3}
+  m_Name: SampleMecha
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.MechaData
+  mechaId: sample_mecha
+  displayName: Sample Mecha
+  description: Sample base specifications. Not connected to battle units yet.
+  modelPrefab: {fileID: 1053079044590142513, guid: 6738104dfe3d7e54eade95f1c312405e, type: 3}
+  baseAP: 5
+  movementCellsPerAP: 1
+  bodyMaxHP: 20
+  cockpitMaxHP: 6
+  headMaxHP: 6
+  leftArmMaxHP: 8
+  rightArmMaxHP: 8
+  leftLegMaxHP: 10
+  rightLegMaxHP: 10
+  chassisWeightTonnes: 0
+  equipmentWeightLimitTonnes: 0
