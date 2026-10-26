@@ -49,7 +49,7 @@ namespace MechaXCOM.Tests
             var visibility = root.AddComponent<VisibilitySystem>();
             visibility.Initialize(grid, new[] { first, second, enemy });
             turns.ConfigureVisibility(visibility);
-            combat = root.AddComponent<CombatSystem>(); combat.Initialize(grid, covers, turns); combat.SetRollSource(() => 0);
+            combat = root.AddTestCombatSystem(); combat.Initialize(grid, covers, turns); combat.SetRollSource(() => 0);
             var ai = root.AddComponent<EnemyAIController>(); ai.Initialize(grid, combat, turns); turns.ConfigureEnemyAI(ai);
             var visualizer = root.AddComponent<GridVisualizer>(); visualizer.Initialize(grid);
             ui = root.AddComponent<BattleDebugUI>(); ui.Initialize(grid, covers); ui.enabled = false;

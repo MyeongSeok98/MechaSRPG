@@ -44,7 +44,7 @@ namespace MechaXCOM.Tests
             var visibility = root.AddComponent<VisibilitySystem>();
             visibility.Initialize(grid, new[] { player, enemy });
             turns.ConfigureVisibility(visibility);
-            combat = root.AddComponent<CombatSystem>(); combat.Initialize(grid, covers, turns);
+            combat = root.AddTestCombatSystem(); combat.Initialize(grid, covers, turns);
             var ai = root.AddComponent<EnemyAIController>(); ai.Initialize(grid, combat, turns); turns.ConfigureEnemyAI(ai);
             input = root.AddComponent<PlayerInputController>(); input.Initialize(camera, grid, visualizer, ui);
             input.InitializeCombat(combat, turns); ui.InitializeCombat(input, turns);

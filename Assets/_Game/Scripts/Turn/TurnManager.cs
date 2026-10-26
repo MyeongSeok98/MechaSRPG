@@ -159,7 +159,8 @@ namespace MechaXCOM
         }
         private void HandleUnitStateChanged()
         {
-            if (ActiveEnemy && !ActiveEnemy.Health.CanFight) ActiveEnemy = null;
+            if (ActiveEnemy && !ActiveEnemy.Health.CanFight &&
+                !(overwatch && overwatch.IsResolvingMover(ActiveEnemy))) ActiveEnemy = null;
             CheckBattleEnd();
         }
         public void CheckBattleEnd()

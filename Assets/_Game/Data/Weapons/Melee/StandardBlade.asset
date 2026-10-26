@@ -17,8 +17,8 @@ MonoBehaviour:
   attackType: 1
   rangedCategory: 0
   meleeCategory: 0
-  minDamage: 7
-  maxDamage: 9
+  minDamage: 1200
+  maxDamage: 1600
   baseHitChance: 95
   range: 2
   apCost: 3

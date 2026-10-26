@@ -27,24 +27,24 @@ namespace MechaXCOM
             {
                 BattleUnit target = null;
                 var slots = GetUsableSlots(actor);
-                if (slots.Count == 0) yield break;
                 WeaponSlot attackSlot = default;
-                long nearestDistance = long.MaxValue;
-                foreach (var unit in units)
-                {
-                    if (!ValidTarget(unit)) continue;
-                    if (!TryImmediateSlot(actor, unit, slots, out var slot)) continue;
-                    long distance = CombatMath.GetGridDistance(actor.CurrentGridPosition, unit.CurrentGridPosition);
-                    if (distance >= nearestDistance) continue;
-                    nearestDistance = distance;
-                    target = unit;
-                    attackSlot = slot;
-                }
-                if (target)
+                if (FindImmediateTarget(actor, units, slots, out target, out attackSlot))
                 {
                     combat.TryAttackWithWeapon(actor, target, attackSlot);
                     yield break;
                 }
+                bool detectedTarget = false;
+                foreach (var unit in units) if (ValidTarget(unit)) { detectedTarget = true; break; }
+                if (!detectedTarget) yield break;
+                foreach (var slot in actor.Combat.GetAttackSlots(AttackType.Ranged))
+                {
+                    if (!actor.Ammo || actor.Ammo.GetStatus(slot).Loaded != 0 || !combat.TryReloadWithWeapon(actor, slot)) continue;
+                    slots = GetUsableSlots(actor);
+                    if (FindImmediateTarget(actor, units, slots, out target, out attackSlot))
+                    { combat.TryAttackWithWeapon(actor, target, attackSlot); yield break; }
+                    break;
+                }
+                if (slots.Count == 0) yield break;
 
                 List<GridCell> attackPath = null, approachPath = null;
                 BattleUnit attackTarget = null, approachTarget = null;
@@ -77,12 +77,24 @@ namespace MechaXCOM
                 if (!actor.Movement.TryMove(chosenPath[steps - 1].Position)) yield break;
                 while (actor && actor.Movement && actor.Movement.IsMoving)
                 {
-                    if (!IsReady || ActingUnit != actor || !ValidActor(actor) || !ValidTarget(target))
+                    if (!IsReady || ActingUnit != actor || !HasActorContext(actor))
+                    { CancelCurrentAction(); yield break; }
+                    // A committed step may now wait for several player decisions. Critical
+                    // actors remain present until all eligible watchers have finished reacting.
+                    if (turns.Overwatch && turns.Overwatch.IsResolvingMover(actor))
+                    { yield return null; continue; }
+                    if (!ValidActor(actor) || !ValidTarget(target))
                     { CancelCurrentAction(); yield break; }
                     yield return null;
                 }
                 if (attackPath != null && IsReady && ActingUnit == actor && ValidActor(actor) && ValidTarget(target))
-                    combat.TryAttackWithWeapon(actor, target, plannedSlot);
+                {
+                    // Reaction damage may disable the planned hand or transfer an Either
+                    // weapon to the surviving hand while the movement is waiting.
+                    if (!combat.TryAttackWithWeapon(actor, target, plannedSlot).WasExecuted &&
+                        TryImmediateSlot(actor, target, GetUsableSlots(actor), out var survivingSlot))
+                        combat.TryAttackWithWeapon(actor, target, survivingSlot);
+                }
             }
             finally
             {
@@ -95,8 +107,22 @@ namespace MechaXCOM
             var slots = new List<WeaponSlot>(2);
             foreach (var type in new[] { AttackType.Melee, AttackType.Ranged })
                 foreach (var slot in actor.Combat.GetAttackSlots(type))
-                    if (actor.Combat.TryGetAttack(slot, out var stats, out _) && stats.Range > 0 && stats.MinDamage > 0) slots.Add(slot);
+                    if (actor.Combat.TryGetAttack(slot, out var stats, out _) && stats.Range > 0 && stats.MinDamage > 0 &&
+                        (!stats.Weapon.UsesAmmo || (actor.Ammo && actor.Ammo.CanFire(slot)))) slots.Add(slot);
             return slots;
+        }
+        private bool FindImmediateTarget(BattleUnit actor, IReadOnlyList<BattleUnit> units, List<WeaponSlot> slots,
+            out BattleUnit target, out WeaponSlot chosen)
+        {
+            target = null; chosen = default; long nearest = long.MaxValue;
+            foreach (var unit in units)
+            {
+                if (!ValidTarget(unit) || !TryImmediateSlot(actor, unit, slots, out var slot)) continue;
+                long distance = CombatMath.GetGridDistance(actor.CurrentGridPosition, unit.CurrentGridPosition);
+                if (distance >= nearest) continue;
+                target = unit; chosen = slot; nearest = distance;
+            }
+            return target;
         }
         private bool TryImmediateSlot(BattleUnit actor, BattleUnit target, List<WeaponSlot> slots, out WeaponSlot chosen)
         {
@@ -109,7 +135,8 @@ namespace MechaXCOM
             grid && grid.TryGetCell(unit.CurrentGridPosition, out var cell) && cell.OccupyingUnit == unit;
         private bool ValidTarget(BattleUnit unit) => Registered(unit) && unit.Team == UnitTeam.Player &&
             turns && turns.Visibility && turns.Visibility.IsVisibleTo(UnitTeam.Enemy, unit);
-        private bool ValidActor(BattleUnit unit) => Registered(unit) && unit.Health.CanFight && unit.Team == UnitTeam.Enemy &&
+        private bool ValidActor(BattleUnit unit) => HasActorContext(unit) && unit.Health.CanFight;
+        private bool HasActorContext(BattleUnit unit) => Registered(unit) && unit.Health.isActiveAndEnabled && unit.Team == UnitTeam.Enemy &&
             turns && turns.isActiveAndEnabled && !turns.IsBattleOver && turns.ActiveTeam == UnitTeam.Enemy &&
             unit.Movement && unit.Movement.isActiveAndEnabled && unit.Combat && unit.Combat.isActiveAndEnabled &&
             unit.ActionPoints && unit.ActionPoints.isActiveAndEnabled && unit.Mobility && unit.Mobility.isActiveAndEnabled;

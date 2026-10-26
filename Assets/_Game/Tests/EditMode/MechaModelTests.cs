@@ -58,7 +58,7 @@ namespace MechaXCOM.Tests
                 Assert.That(visual.childCount, Is.EqualTo(1));
                 Assert.That(visual.GetChild(0), Is.SameAs(model));
                 Assert.That(unit.ActionPoints.CurrentPoints, Is.EqualTo(5));
-                Assert.That(unit.Health.GetMaxHP(TargetBodyPart.Torso), Is.EqualTo(20));
+                Assert.That(unit.Health.GetMaxHP(TargetBodyPart.Torso), Is.EqualTo(unit.MechaData.GetMaxHP(TargetBodyPart.Torso)));
             }
             finally { Object.DestroyImmediate(root); Object.DestroyImmediate(gridObject); }
         }

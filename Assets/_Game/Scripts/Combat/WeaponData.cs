@@ -23,6 +23,9 @@ namespace MechaXCOM
         [SerializeField, Min(1)] private int minDamage = 4, maxDamage = 6;
         [SerializeField, Range(0, 100)] private int baseHitChance = 80;
         [SerializeField, Min(1)] private int range = 7, apCost = 3;
+        [SerializeField, Min(1)] private int magazineCapacity = 6;
+        [SerializeField, Min(0)] private int spareMagazineCount = 2;
+        [SerializeField, Min(1)] private int reloadAPCost = 3;
         [SerializeField, Min(0)] private float weightTonnes;
         [SerializeField] private GripRequirement gripRequirement = GripRequirement.Either;
         [SerializeField, Min(1)] private float twoHandHitMultiplier = 1.1f;
@@ -37,6 +40,10 @@ namespace MechaXCOM
         public int BaseHitChance => baseHitChance;
         public int Range => range;
         public int APCost => apCost;
+        public bool UsesAmmo => attackType == AttackType.Ranged;
+        public int MagazineCapacity => magazineCapacity;
+        public int SpareMagazineCount => spareMagazineCount;
+        public int ReloadAPCost => reloadAPCost;
         public float WeightTonnes => weightTonnes;
         public GripRequirement GripRequirement => gripRequirement;
         public float TwoHandHitMultiplier => twoHandHitMultiplier;
@@ -51,6 +58,8 @@ namespace MechaXCOM
             else if (minDamage < 1 || maxDamage < minDamage) reason = "Damage must satisfy 1 <= minimum <= maximum.";
             else if (baseHitChance < 0 || baseHitChance > 100) reason = "Base hit chance must be between 0 and 100.";
             else if (range < 1 || apCost < 1) reason = "Range and AP cost must be at least 1.";
+            else if (UsesAmmo && (magazineCapacity < 1 || spareMagazineCount < 0 || reloadAPCost < 1))
+                reason = "장탄 수와 재장전 AP는 1 이상, 예비 탄창·팩 개수는 0 이상이어야 합니다.";
             else if (!Finite(weightTonnes) || weightTonnes < 0) reason = "Weight must be finite and nonnegative.";
             else if (!Finite(twoHandHitMultiplier) || twoHandHitMultiplier < 1) reason = "Two-hand multiplier must be finite and at least 1.";
             if (reason != null) return false;
@@ -84,6 +93,9 @@ namespace MechaXCOM
             baseHitChance = Mathf.Clamp(baseHitChance, 0, 100);
             range = Mathf.Max(1, range);
             apCost = Mathf.Max(1, apCost);
+            magazineCapacity = Mathf.Max(1, magazineCapacity);
+            spareMagazineCount = Mathf.Max(0, spareMagazineCount);
+            reloadAPCost = Mathf.Max(1, reloadAPCost);
             weightTonnes = Finite(weightTonnes) ? Mathf.Max(0, weightTonnes) : 0;
             twoHandHitMultiplier = Finite(twoHandHitMultiplier) ? Mathf.Max(1, twoHandHitMultiplier) : 1;
         }

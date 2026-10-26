@@ -7,7 +7,13 @@ namespace MechaXCOM
     public class BattleUnit : MonoBehaviour
     {
         [SerializeField, InspectorName("기체 데이터")] private MechaData mechaData;
+        [SerializeField, InspectorName("파일럿 데이터")] private CharacterData pilotData;
+        public CharacterData PilotData => pilotData;
+        public int PilotTechnique { get; private set; }
         public MechaData MechaData => mechaData;
+        public ArmorType ArmorType { get; private set; }
+        public int MechaAccuracy { get; private set; }
+        public int MechaEvasion { get; private set; }
         [SerializeField, Min(0)] private int movementRange = 5;
         [SerializeField] private Vector2Int startGridPosition = new Vector2Int(1, 1);
         [SerializeField, Min(0)] private float heightOffset = 1f;
@@ -57,6 +63,7 @@ namespace MechaXCOM
         public UnitHealth Health { get; private set; }
         public UnitActionPoints ActionPoints { get; private set; }
         public UnitCombat Combat { get; private set; }
+        public UnitWeaponAmmo Ammo { get; private set; }
         public UnitVision Vision { get; private set; }
         public UnitOverwatch Overwatch { get; private set; }
         public UnitTeam Team => team;
@@ -99,6 +106,10 @@ namespace MechaXCOM
                     Health.ConfigurePartHP((TargetBodyPart)part, mechaData.GetMaxHP((TargetBodyPart)part));
                 ActionPoints.Configure(mechaData.BaseAP);
             }
+            MechaAccuracy = mechaData ? mechaData.Accuracy : 0;
+            MechaEvasion = mechaData ? mechaData.Evasion : 0;
+            ArmorType = mechaData ? mechaData.ArmorType : ArmorType.Standard;
+            PilotTechnique = pilotData ? Mathf.Clamp(pilotData.Technique, 0, CombatMath.MaxPilotTechnique) : 0;
             Health.Initialize();
             ActionPoints.ResetForTurn();
             Health.StateChanged += HandleStateChanged;
@@ -108,6 +119,8 @@ namespace MechaXCOM
             if (mechaVisual) mechaVisual.Initialize(mechaData ? mechaData.ModelPrefab : null, heightOffset);
             Movement.Initialize(grid, this);
             IsInitialized = true;
+            Ammo = GetComponent<UnitWeaponAmmo>() ?? gameObject.AddComponent<UnitWeaponAmmo>();
+            Ammo.Initialize(this);
             Overwatch = GetComponent<UnitOverwatch>() ?? gameObject.AddComponent<UnitOverwatch>();
             Overwatch.Initialize(this);
             VisibilityChanged?.Invoke();
@@ -142,6 +155,12 @@ namespace MechaXCOM
         }
         private void HandlePartDestroyed(TargetBodyPart part)
         {
+            if (part == TargetBodyPart.LeftArm || part == TargetBodyPart.RightArm)
+            {
+                var loadout = GetComponent<UnitWeaponLoadout>();
+                if (loadout) loadout.ResolveArmDamage(Health);
+                VisibilityChanged?.Invoke();
+            }
             if ((part == TargetBodyPart.LeftLeg || part == TargetBodyPart.RightLeg) && Movement && Movement.IsMoving && !Movement.IsResolvingStep)
                 Movement.CancelMove();
         }

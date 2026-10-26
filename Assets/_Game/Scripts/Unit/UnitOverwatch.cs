@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MechaXCOM
@@ -12,6 +13,7 @@ namespace MechaXCOM
         private Vector2Int origin;
         private UnitTeam team;
         private GripMode grip;
+        private readonly HashSet<BattleUnit> processedTargets = new HashSet<BattleUnit>();
         public WeaponSlot Slot { get; private set; }
         public WeaponData Weapon { get; private set; }
         public FacingDirection Facing { get; private set; }
@@ -35,6 +37,7 @@ namespace MechaXCOM
             Slot = slot; Weapon = weapon; Facing = facing;
             origin = unit.CurrentGridPosition; team = unit.Team;
             grip = slot == WeaponSlot.LeftHand ? loadout.LeftGrip : loadout.RightGrip;
+            processedTargets.Clear();
             active = true;
         }
         internal void BindSystem(OverwatchSystem owner)
@@ -42,11 +45,13 @@ namespace MechaXCOM
             if (system != owner) Cancel();
             system = owner;
         }
-        internal void Cancel() { active = false; Weapon = null; }
-        internal bool TryConsume()
+        internal void Cancel() { active = false; Weapon = null; processedTargets.Clear(); }
+        internal bool CanReactTo(BattleUnit target) => IsActive && target && target.isActiveAndEnabled &&
+            target.IsAlive && target.Health.isActiveAndEnabled && target.IsRegisteredOnGrid &&
+            target.Team != team && !processedTargets.Contains(target);
+        internal bool TryConsumeTarget(BattleUnit target)
         {
-            if (!IsActive) return false;
-            Cancel(); return true;
+            return CanReactTo(target) && processedTargets.Add(target);
         }
         private void ValidateState()
         {
@@ -57,6 +62,7 @@ namespace MechaXCOM
                 !unit.Combat || !unit.Combat.isActiveAndEnabled ||
                 !unit.ActionPoints || !unit.ActionPoints.isActiveAndEnabled || !loadout ||
                 !unit.Combat.TryGetAttack(Slot, out var attack, out _) ||
+                !unit.Ammo || !unit.Ammo.CanFire(Slot) ||
                 attack.Type != AttackType.Ranged || attack.Weapon != Weapon ||
                 (Slot == WeaponSlot.LeftHand ? loadout.LeftGrip : loadout.RightGrip) != grip)
                 Cancel();

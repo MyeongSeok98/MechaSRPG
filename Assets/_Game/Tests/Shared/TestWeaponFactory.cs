@@ -5,6 +5,13 @@ namespace MechaXCOM.Tests
     // Test fixtures use actual WeaponData, without exposing runtime combat setters.
     public static class TestWeaponFactory
     {
+        // Legacy fixtures assert ordinary damage; critical-hit tests opt in explicitly.
+        public static CombatSystem AddTestCombatSystem(this GameObject root)
+        {
+            var combat = root.AddComponent<CombatSystem>();
+            combat.SetCriticalRollSource(() => 99f);
+            return combat;
+        }
         public static BattleUnit AddTestBattleUnit(this GameObject root)
         {
             var unit = root.AddComponent<BattleUnit>();

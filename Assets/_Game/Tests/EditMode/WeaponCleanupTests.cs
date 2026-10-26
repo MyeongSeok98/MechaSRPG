@@ -38,20 +38,17 @@ namespace MechaXCOM.Tests
                     {
                         var loadout = unit.GetComponent<UnitWeaponLoadout>(); Assert.That(loadout, Is.Not.Null, unit.name);
                         Assert.That(loadout.IsValid(out var reason), Is.True, reason);
-                        Assert.That(loadout.RightWeapon, Is.Not.Null);
-                        if (name == "1V1Test")
+                        var equipped = new[] { loadout.LeftWeapon, loadout.RightWeapon }.Where(w => w).ToArray();
+                        Assert.That(equipped, Is.Not.Empty, unit.name + " must use equipped WeaponData.");
+                        foreach (var weapon in equipped)
+                            Assert.That(weapon.IsValid(out var weaponReason), Is.True, unit.name + ": " + weaponReason);
+                        var combat = unit.GetComponent<UnitCombat>();
+                        Assert.That(combat, Is.Not.Null, unit.name);
+                        foreach (var slot in new[] { WeaponSlot.LeftHand, WeaponSlot.RightHand })
                         {
-                            Assert.That(loadout.RightWeapon.MinDamage, Is.EqualTo(5));
-                            Assert.That(loadout.RightWeapon.MaxDamage, Is.EqualTo(5));
-                            Assert.That(loadout.RightWeapon.BaseHitChance, Is.EqualTo(80));
-                            Assert.That(loadout.RightWeapon.Range, Is.EqualTo(7));
-                            Assert.That(loadout.RightWeapon.APCost, Is.EqualTo(3));
-                            Assert.That(loadout.LeftWeapon, Is.Not.Null);
-                            Assert.That(loadout.LeftWeapon.MinDamage, Is.EqualTo(8));
-                            Assert.That(loadout.LeftWeapon.MaxDamage, Is.EqualTo(8));
-                            Assert.That(loadout.LeftWeapon.BaseHitChance, Is.EqualTo(95));
-                            Assert.That(loadout.LeftWeapon.Range, Is.EqualTo(2));
-                            Assert.That(loadout.LeftWeapon.APCost, Is.EqualTo(3));
+                            var weapon = slot == WeaponSlot.LeftHand ? loadout.LeftWeapon : loadout.RightWeapon;
+                            Assert.That(combat.TryGetAttack(slot, out var attack, out _), Is.EqualTo(weapon != null), unit.name + ": " + slot);
+                            if (weapon) Assert.That(attack.Weapon, Is.SameAs(weapon));
                         }
                     }
                 }

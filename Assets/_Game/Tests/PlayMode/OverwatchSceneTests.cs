@@ -30,6 +30,11 @@ namespace MechaXCOM.Tests
                 var input = Object.FindFirstObjectByType<PlayerInputController>();
                 Assert.That(service, Is.Not.Null);
                 Assert.That(turns.Overwatch, Is.SameAs(service));
+                var controller = input.GetComponent<OverwatchDecisionController>();
+                Assert.That(controller, Is.Not.Null);
+                Assert.That(controller.IsReady, Is.True);
+                Assert.That(input.GetComponents<OverwatchDecisionController>().Length, Is.EqualTo(1));
+                Assert.That(input.GetComponent<BodyTargetUI>(), Is.Not.Null);
                 var units = Object.FindObjectsByType<BattleUnit>(FindObjectsSortMode.None);
                 Assert.That(units, Is.Not.Empty);
                 foreach (var unit in units)
@@ -69,6 +74,7 @@ namespace MechaXCOM.Tests
                 var player = battle.Players[0]; var enemy = battle.Enemies[0];
                 Assert.That(service.TryBegin(player, WeaponSlot.RightHand, FacingDirection.North), Is.True);
                 Assert.That(battle.Turns.TryEndTurn(), Is.True);
+                yield return FirePendingTorso(service);
                 yield return battle.WaitForPlayerTurn();
                 Assert.That(enemy.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(15), "One reaction hits the moving enemy.");
                 Assert.That(enemy.Mobility.MovedCells, Is.EqualTo(2));
@@ -127,6 +133,7 @@ namespace MechaXCOM.Tests
                 battle.Enemies[0].Health.ApplyDamage(TargetBodyPart.Torso, 15);
                 Assert.That(service.TryBegin(battle.Players[0], WeaponSlot.RightHand, FacingDirection.North), Is.True);
                 Assert.That(battle.Turns.TryEndTurn(), Is.True);
+                yield return FirePendingTorso(service);
                 yield return battle.WaitForPlayerTurn();
                 yield return null;
                 Assert.That(battle.Turns.IsBattleOver && battle.Turns.IsPlayerVictory, Is.True);
@@ -138,6 +145,17 @@ namespace MechaXCOM.Tests
             yield return null;
         }
 
+        private IEnumerator FirePendingTorso(OverwatchSystem service)
+        {
+            float deadline = Time.realtimeSinceStartup + 3f;
+            while (!service.PendingDecision.HasValue && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(service.PendingDecision.HasValue, Is.True, "An explicit player decision must be requested.");
+            var decision = service.PendingDecision.Value;
+            yield return null;
+            Assert.That(service.PendingDecision.Value.Id, Is.EqualTo(decision.Id), "No automatic shot while waiting.");
+            Assert.That(service.TryFire(decision.Id, TargetBodyPart.Torso).WasExecuted, Is.True);
+        }
+
         private EnemyAITestBattle CreateAI(out OverwatchSystem service)
         {
             var battle = new EnemyAITestBattle(new[] { new Vector2Int(3, 1) }, new[] { new Vector2Int(3, 4) });
@@ -145,6 +163,7 @@ namespace MechaXCOM.Tests
             battle.Combat.SetDamageRollSource((min, max) => min);
             service = battle.Root.AddComponent<OverwatchSystem>();
             service.Initialize(battle.Grid, battle.Combat, battle.Turns, battle.Players.Concat(battle.Enemies).ToArray());
+            service.ConfigureDecisionReceiver(new OverwatchDecisionTestReceiver());
             return battle;
         }
     }

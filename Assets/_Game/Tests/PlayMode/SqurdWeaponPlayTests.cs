@@ -40,11 +40,16 @@ namespace MechaXCOM.Tests
                 var preview = input.CurrentAttackPreview;
                 Assert.That(preview.CanAttack, Is.True, preview.FailureReason);
                 Assert.That(preview.WeaponName, Is.EqualTo("Standard Beam Rifle"));
-                Assert.That(preview.MinDamage, Is.EqualTo(4)); Assert.That(preview.MaxDamage, Is.EqualTo(6));
-                Assert.That(input.GetComponent<BodyTargetUI>().AttackInfoText, Is.EqualTo("Damage 4-6 / AP 3"));
+                Assert.That(preview.MinDamage, Is.EqualTo(700)); Assert.That(preview.MaxDamage, Is.EqualTo(1000));
+                var weapon = player.GetComponent<UnitWeaponLoadout>().RightWeapon;
+                int minimum = AuthoredWeaponDamageExpectation.Normal(enemy, weapon, 700);
+                int maximum = AuthoredWeaponDamageExpectation.Normal(enemy, weapon, 1000);
+                Assert.That(input.GetComponent<BodyTargetUI>().AttackInfoText, Is.EqualTo($"Damage {minimum}-{maximum} / AP 3"));
                 // UI rendering and screen sizes are covered by WeaponInputTests.
                 combat.SetRollSource(() => 0); combat.SetDamageRollSource((min, max) => max);
-                Assert.That(input.TryAttackSelected().DamageDealt, Is.EqualTo(6));
+                combat.SetCriticalRollSource(() => 99f);
+                int hpBefore = enemy.Health.GetCurrentHP(TargetBodyPart.Torso);
+                Assert.That(input.TryAttackSelected().DamageDealt, Is.EqualTo(Mathf.Min(maximum, hpBefore)));
                 Assert.That(player.ActionPoints.CurrentPoints, Is.EqualTo(2));
             }
             finally

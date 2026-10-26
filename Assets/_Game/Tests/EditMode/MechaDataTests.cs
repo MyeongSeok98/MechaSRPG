@@ -34,9 +34,64 @@ namespace MechaXCOM.Tests
             if (!valid) Assert.That(args[0], Is.Not.Null.And.Not.Empty);
             return valid;
         }
+        private FieldInfo ArmorField()
+        {
+            var field = type.GetField("armorType", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "MechaData needs a serialized armor selection.");
+            Assert.That(type.GetProperty("ArmorType"), Is.Not.Null);
+            return field;
+        }
+        [Test] public void LegacyMechaDataWithoutArmorDefaultsToStandard()
+        {
+            var field = ArmorField();
+            JsonUtility.FromJsonOverwrite("{\"mechaId\":\"legacy\",\"baseAP\":7}", data);
+            Assert.That(Convert.ToInt32(field.GetValue(data)), Is.Zero);
+            Assert.That(Read("ArmorType").ToString(), Is.EqualTo("Standard"));
+            Assert.That(Valid(), Is.True);
+            Assert.That(Read("BaseAP"), Is.EqualTo(7));
+        }
+        [TestCase(0)] [TestCase(1)] [TestCase(2)]
+        public void ArmorSelectionPersistsThroughAssetUnloadAndReload(int value)
+        {
+            var field = ArmorField(); Set("mechaId", "armor_test");
+            field.SetValue(data, Enum.ToObject(field.FieldType, value));
+            Set("bodyMaxHP", 3500);
+            AssetDatabase.CreateFolder("Assets", Path.GetFileName(folder));
+            string path = folder + "/Armor.asset";
+            AssetDatabase.CreateAsset(data, path); AssetDatabase.SaveAssetIfDirty(data);
+            Resources.UnloadAsset(data); data = null;
+            data = AssetDatabase.LoadAssetAtPath<MechaData>(path);
+            Assert.That(Convert.ToInt32(Read("ArmorType")), Is.EqualTo(value));
+            Assert.That(((MechaData)data).GetMaxHP(TargetBodyPart.Torso), Is.EqualTo(3500));
+            Assert.That(Valid(), Is.True);
+        }
+        [TestCase(-1)] [TestCase(3)] [TestCase(99)]
+        public void UndefinedArmorTypeIsRejected(int value)
+        {
+            var field = ArmorField(); Set("mechaId", "invalid_armor");
+            field.SetValue(data, Enum.ToObject(field.FieldType, value));
+            Assert.That(Valid(), Is.False);
+        }
+        [Test] public void DuplicatedMechaCanChooseDifferentArmorWithoutChangingOriginal()
+        {
+            var field = ArmorField(); Set("mechaId", "original_armor");
+            field.SetValue(data, Enum.ToObject(field.FieldType, 1));
+            var copy = Object.Instantiate(data);
+            try
+            {
+                var serialized = new SerializedObject(copy);
+                serialized.FindProperty("armorType").enumValueIndex = 2;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                Assert.That(Convert.ToInt32(type.GetProperty("ArmorType").GetValue(copy)), Is.EqualTo(2));
+                Assert.That(Convert.ToInt32(Read("ArmorType")), Is.EqualTo(1));
+                Assert.That(((MechaData)copy).GetMaxHP(TargetBodyPart.Torso), Is.EqualTo(20));
+            }
+            finally { Object.DestroyImmediate(copy); }
+        }
         [Test] public void AllRequestedFieldsSurviveAssetReload()
         {
             Set("mechaId", "test_mecha"); Set("displayName", "테스트 기체"); Set("description", "설명\n두 번째 줄");
+            Set("accuracy", 35); Set("evasion", 20);
             Set("baseAP", 7); Set("movementCellsPerAP", .5f); Set("chassisWeightTonnes", 12.5f); Set("equipmentWeightLimitTonnes", 4.5f);
             string[] fields = { "bodyMaxHP", "cockpitMaxHP", "headMaxHP", "leftArmMaxHP", "rightArmMaxHP", "leftLegMaxHP", "rightLegMaxHP" };
             for (int i = 0; i < fields.Length; i++) Set(fields[i], 10 + i);
@@ -48,6 +103,7 @@ namespace MechaXCOM.Tests
             Assert.That(Valid(), Is.True);
             Assert.That(Read("MechaId"), Is.EqualTo("test_mecha"));
             Assert.That(Read("DisplayName"), Is.EqualTo("테스트 기체")); Assert.That(Read("Description"), Is.EqualTo("설명\n두 번째 줄"));
+            Assert.That(Read("Accuracy"), Is.EqualTo(35)); Assert.That(Read("Evasion"), Is.EqualTo(20));
             Assert.That(Read("BaseAP"), Is.EqualTo(7)); Assert.That(Read("MovementCellsPerAP"), Is.EqualTo(.5f));
             Assert.That(Read("ChassisWeightTonnes"), Is.EqualTo(12.5f)); Assert.That(Read("EquipmentWeightLimitTonnes"), Is.EqualTo(4.5f));
             for (int i = 0; i < fields.Length; i++)

@@ -34,7 +34,7 @@ namespace MechaXCOM.Tests
             var enemy = Unit("Authored Enemy"); enemy.Configure(new Vector2Int(6, 2), 5); enemy.ConfigureTeam(UnitTeam.Enemy);
             var inactive = Unit("Inactive Enemy"); inactive.ConfigureTeam(UnitTeam.Enemy); inactive.gameObject.SetActive(false);
             var turns = new GameObject("Authored Turns").AddComponent<TurnManager>(); turns.transform.SetParent(root.transform);
-            var combat = root.AddComponent<CombatSystem>();
+            var combat = root.AddTestCombatSystem();
             controller.Configure(grid, covers, new[] { player, enemy, inactive }, new GridObstacle[0], new CoverObject[0]);
             controller.ConfigureCombat(combat, turns);
             Assert.That(controller.InitializeBattle(), Is.True);
@@ -56,7 +56,7 @@ namespace MechaXCOM.Tests
         public void ExistingAIOnReferencedTurnsIsReused()
         {
             var turns = root.AddComponent<TurnManager>();
-            var combat = root.AddComponent<CombatSystem>();
+            var combat = root.AddTestCombatSystem();
             var ai = root.AddComponent<EnemyAIController>();
             controller.Configure(grid, covers, new BattleUnit[0], new GridObstacle[0], new CoverObject[0]);
             controller.ConfigureCombat(combat, turns);

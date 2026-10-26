@@ -15,7 +15,7 @@ namespace MechaXCOM.Tests
                 Assert.That(method, Is.Not.Null, "Reaction fire needs a guarded execution path.");
                 b.Arm(); b.StartTeam(UnitTeam.Enemy);
                 int rolls = 0; b.Combat.SetRollSource(() => { rolls++; return 0; });
-                var result = (AttackResult)method.Invoke(b.Combat, new object[] { b.Watcher, b.Mover, WeaponSlot.RightHand });
+                var result = (AttackResult)method.Invoke(b.Combat, new object[] { b.Watcher, b.Mover, WeaponSlot.RightHand, TargetBodyPart.Torso });
                 Assert.That(result.WasExecuted, Is.False); Assert.That(rolls, Is.Zero);
                 Assert.That(b.Watcher.Overwatch.IsActive, Is.True);
                 Assert.That(b.Watcher.ActionPoints.CurrentPoints, Is.EqualTo(3));

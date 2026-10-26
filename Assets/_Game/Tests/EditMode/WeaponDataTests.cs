@@ -43,6 +43,9 @@ namespace MechaXCOM.Tests
             serialized.FindProperty("minDamage").intValue = 4;
             serialized.FindProperty("maxDamage").intValue = 6;
             serialized.FindProperty("weightTonnes").floatValue = 2.5f;
+            serialized.FindProperty("magazineCapacity").intValue = 19;
+            serialized.FindProperty("spareMagazineCount").intValue = 3;
+            serialized.FindProperty("reloadAPCost").intValue = 4;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             string path = folder + "/Weapon.asset";
             AssetDatabase.CreateAsset(weapon, path);
@@ -56,6 +59,10 @@ namespace MechaXCOM.Tests
             Assert.That(loaded.MinDamage, Is.EqualTo(4));
             Assert.That(loaded.MaxDamage, Is.EqualTo(6));
             Assert.That(loaded.WeightTonnes, Is.EqualTo(2.5f));
+            Assert.That(loaded.MagazineCapacity, Is.EqualTo(19));
+            Assert.That(loaded.SpareMagazineCount, Is.EqualTo(3));
+            Assert.That(loaded.ReloadAPCost, Is.EqualTo(4));
+            Assert.That(loaded.UsesAmmo, Is.EqualTo(type == AttackType.Ranged));
             Assert.That(File.ReadAllText(path), Does.Contain("weightTonnes: 2.5"));
         }
         [Test] public void BandsAreInclusive()
@@ -148,14 +155,14 @@ namespace MechaXCOM.Tests
             Assert.That(rifle, Is.Not.Null); Assert.That(blade, Is.Not.Null);
             Assert.That(rifle.IsValid(out var rifleReason), Is.True, rifleReason);
             Assert.That(blade.IsValid(out var bladeReason), Is.True, bladeReason);
-            Assert.That(rifle.MinDamage, Is.EqualTo(4)); Assert.That(rifle.MaxDamage, Is.EqualTo(6));
+            Assert.That(rifle.MinDamage, Is.EqualTo(700)); Assert.That(rifle.MaxDamage, Is.EqualTo(1000));
             Assert.That(rifle.GripRequirement, Is.EqualTo(GripRequirement.Either));
             Assert.That(rifle.TwoHandHitMultiplier, Is.EqualTo(1.1f));
             Assert.That(rifle.GetDistanceHitMultiplier(2), Is.EqualTo(.9f));
             Assert.That(rifle.GetDistanceHitMultiplier(5), Is.EqualTo(1));
             Assert.That(rifle.GetDistanceHitMultiplier(7), Is.EqualTo(.8f));
             Assert.That(blade.AttackType, Is.EqualTo(AttackType.Melee));
-            Assert.That(blade.MinDamage, Is.EqualTo(7)); Assert.That(blade.MaxDamage, Is.EqualTo(9));
+            Assert.That(blade.MinDamage, Is.EqualTo(1200)); Assert.That(blade.MaxDamage, Is.EqualTo(1600));
             Assert.That(blade.GripRequirement, Is.EqualTo(GripRequirement.OneHandOnly));
             AssetDatabase.CreateFolder("Assets", Path.GetFileName(folder));
             string duplicate = folder + "/RifleCopy.asset";
@@ -163,13 +170,13 @@ namespace MechaXCOM.Tests
             var copy = AssetDatabase.LoadAssetAtPath<WeaponData>(duplicate);
             var serialized = new SerializedObject(copy);
             serialized.FindProperty("displayName").stringValue = "Custom Rifle";
-            serialized.FindProperty("maxDamage").intValue = 12;
+            serialized.FindProperty("maxDamage").intValue = 1200;
             serialized.FindProperty("distanceBands").GetArrayElementAtIndex(0).FindPropertyRelative("Multiplier").floatValue = .5f;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.SaveAssetIfDirty(copy);
-            Assert.That(copy.MaxDamage, Is.EqualTo(12));
+            Assert.That(copy.MaxDamage, Is.EqualTo(1200));
             Assert.That(copy.GetDistanceHitMultiplier(1), Is.EqualTo(.5f));
-            Assert.That(rifle.MaxDamage, Is.EqualTo(6));
+            Assert.That(rifle.MaxDamage, Is.EqualTo(1000));
             Assert.That(rifle.GetDistanceHitMultiplier(1), Is.EqualTo(.9f));
         }
         [Test] public void InspectorValidationClampsNumbersButKeepsInvalidBandsVisible()

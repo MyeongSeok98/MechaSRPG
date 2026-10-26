@@ -88,6 +88,12 @@ namespace MechaXCOM
             if (debugUI) debugUI.Initialize(grid, coverSystem);
             if (inputController) inputController.Initialize(battleCamera, grid, visualizer, debugUI);
             if (inputController && combatSystem && turnManager) inputController.InitializeCombat(combatSystem, turnManager);
+            if (inputController && turnManager && turnManager.Overwatch)
+            {
+                var decisions = inputController.GetComponent<OverwatchDecisionController>() ??
+                    inputController.gameObject.AddComponent<OverwatchDecisionController>();
+                decisions.Initialize(turnManager.Overwatch, inputController, inputController.GetComponent<BodyTargetUI>());
+            }
             if (debugUI && inputController && turnManager) debugUI.InitializeCombat(inputController, turnManager);
             initialized = true;
             return true;

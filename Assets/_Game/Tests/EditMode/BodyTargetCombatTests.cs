@@ -20,7 +20,7 @@ namespace MechaXCOM.Tests
             var visibility = root.AddComponent<VisibilitySystem>();
             visibility.Initialize(grid, new[] { player, enemy });
             turns.ConfigureVisibility(visibility);
-            combat = root.AddComponent<CombatSystem>(); combat.Initialize(grid, root.AddComponent<CoverSystem>(), turns);
+            combat = root.AddTestCombatSystem(); combat.Initialize(grid, root.AddComponent<CoverSystem>(), turns);
         }
         private BattleUnit Unit(Vector2Int position, UnitTeam team)
         {

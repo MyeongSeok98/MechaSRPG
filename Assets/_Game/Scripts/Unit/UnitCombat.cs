@@ -28,6 +28,16 @@ namespace MechaXCOM
                 var weapon = slot == WeaponSlot.RightHand ? loadout.RightWeapon : loadout.LeftWeapon;
                 var grip = slot == WeaponSlot.RightHand ? loadout.RightGrip : loadout.LeftGrip;
                 if (!weapon) { reason = "선택한 손에 무기가 없습니다."; return false; }
+                var unit = GetComponent<BattleUnit>();
+                if (unit && unit.IsInitialized && unit.Health)
+                {
+                    bool leftDestroyed = unit.Health.GetCurrentHP(TargetBodyPart.LeftArm) == 0;
+                    bool rightDestroyed = unit.Health.GetCurrentHP(TargetBodyPart.RightArm) == 0;
+                    if (grip == GripMode.TwoHands && (leftDestroyed || rightDestroyed))
+                    { reason = "양손 파지 무기는 양쪽 팔이 모두 필요합니다."; return false; }
+                    if (slot == WeaponSlot.LeftHand ? leftDestroyed : rightDestroyed)
+                    { reason = "파괴된 팔의 무기는 사용할 수 없습니다."; return false; }
+                }
                 stats = new AttackStats
                 {
                     Type = weapon.AttackType, Slot = slot, DisplayName = weapon.DisplayName, Weapon = weapon,
@@ -45,13 +55,8 @@ namespace MechaXCOM
         {
             var slots = new List<WeaponSlot>(2);
             if (type != AttackType.Ranged && type != AttackType.Melee) return slots;
-            var loadout = GetComponent<UnitWeaponLoadout>();
-            if (loadout)
-            {
-                if (!loadout.IsValid(out _)) return slots;
-                if (loadout.RightWeapon && loadout.RightWeapon.AttackType == type) slots.Add(WeaponSlot.RightHand);
-                if (loadout.LeftWeapon && loadout.LeftWeapon.AttackType == type) slots.Add(WeaponSlot.LeftHand);
-            }
+            foreach (var slot in new[] { WeaponSlot.RightHand, WeaponSlot.LeftHand })
+                if (TryGetAttack(slot, out var attack, out _) && attack.Type == type) slots.Add(slot);
             return slots;
         }
         public AttackStats GetAttack(AttackType type)

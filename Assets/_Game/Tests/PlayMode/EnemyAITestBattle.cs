@@ -27,7 +27,7 @@ namespace MechaXCOM.Tests
             Players = MakeUnits(playerPositions, UnitTeam.Player);
             Enemies = MakeUnits(enemyPositions, UnitTeam.Enemy);
             Turns = Root.AddComponent<TurnManager>();
-            Combat = Root.AddComponent<CombatSystem>();
+            Combat = Root.AddTestCombatSystem();
             Combat.Initialize(Grid, Root.AddComponent<CoverSystem>(), Turns);
             Combat.SetRollSource(() => 0);
             AI = Root.AddComponent<EnemyAIController>();

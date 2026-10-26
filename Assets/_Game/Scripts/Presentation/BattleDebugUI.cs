@@ -63,6 +63,12 @@ namespace MechaXCOM
             {
                 GUILayout.Label($"Turn: {turns.TurnNumber} / {turns.ActiveTeam}", textStyle);
                 if (VisibleActingEnemy) GUILayout.Label($"Acting: {VisibleActingEnemy.name}", textStyle);
+                var decision = turns.Overwatch ? turns.Overwatch.PendingDecision : null;
+                if (decision.HasValue)
+                {
+                    GUILayout.Label($"Overwatch: {decision.Value.Watcher.name}", textStyle);
+                    GUILayout.Label("Choose part / Fire or Skip", textStyle);
+                }
             }
             if (!selected)
             {
@@ -90,6 +96,13 @@ namespace MechaXCOM
                 GUILayout.Label($"Cell: ({selected.CurrentGridPosition.x}, {selected.CurrentGridPosition.y})", textStyle);
                 GUILayout.Label($"Moved: {selected.Mobility.MovedCells} Cells", textStyle);
                 GUILayout.Label($"Facing: {selected.Facing}", textStyle);
+                if (selected.Ammo)
+                    foreach (var slot in new[] { WeaponSlot.LeftHand, WeaponSlot.RightHand })
+                    {
+                        var ammo = selected.Ammo.GetStatus(slot);
+                        if (ammo.Weapon && ammo.UsesAmmo)
+                            GUILayout.Label($"{slot}: {WeaponAmmoText.Summary(ammo)}", textStyle);
+                    }
                 if (selected.Overwatch && selected.Overwatch.IsActive)
                     GUILayout.Label($"OVERWATCH: {selected.Overwatch.Facing} / {selected.Overwatch.Weapon.DisplayName} / Hit x0.75", textStyle);
                 GUILayout.Space(10);
@@ -125,12 +138,14 @@ namespace MechaXCOM
                     GUILayout.Label($"Distance: {preview.Distance:F2} cells", textStyle);
                     GUILayout.Label($"Weapon: {preview.WeaponName}", textStyle);
                     GUILayout.Label($"Attack: {preview.Type} / Damage {AttackPreviewText.DamageRange(preview)}", textStyle);
+                    GUILayout.Label($"Armor: {preview.TargetArmorType} ×{preview.ArmorMultiplier:0.##}", textStyle);
                     GUILayout.Label($"Cover: {preview.Direction} ×{preview.CoverMultiplier:0.##} / Part ×{preview.PartMultiplier:0.##}", textStyle);
                     GUILayout.Label($"Attacker head: ×{preview.HeadMultiplier:0.##}", textStyle);
                     GUILayout.Label($"Grip: ×{preview.GripMultiplier:0.##} / Range: ×{preview.DistanceMultiplier:0.##}", textStyle);
                     GUILayout.Label(preview.BlockedByBuilding ? "Hit: BLOCKED BY BUILDING" :
                         $"Hit: {preview.HitChance}%   Damage: {AttackPreviewText.DamageRange(preview)}", textStyle);
                     if (!preview.CanAttack) GUILayout.Label(preview.FailureReason, textStyle);
+                    GUILayout.Label($"Critical: {preview.CriticalChance:0.##}% / Damage ×{preview.CriticalDamageMultiplier:0.##}", textStyle);
                 }
                 else if (!turns.IsBattleOver && turns.IsPlayerTurn)
                     GUILayout.Label(input.ActionMode == UnitActionMode.Move ? "Choose a destination in the teal range." :
@@ -143,7 +158,7 @@ namespace MechaXCOM
                 GUI.enabled = oldEnabled;
                 var result = input.LastAttackResult;
                 if (result.WasExecuted)
-                    GUILayout.Label($"{(result.Hit ? "HIT" : "MISS")} / Damage {result.DamageDealt}\n{BodyTargetRules.Label(result.TargetPart)} HP: {result.TargetPartHPAfter} / {result.TargetStateAfter.ToString().ToUpperInvariant()}", textStyle);
+                    GUILayout.Label($"{(result.IsCritical ? "CRITICAL HIT" : result.Hit ? "HIT" : "MISS")} / Damage {result.DamageDealt}\n{BodyTargetRules.Label(result.TargetPart)} HP: {result.TargetPartHPAfter} / {result.TargetStateAfter.ToString().ToUpperInvariant()}", textStyle);
                 if (!string.IsNullOrEmpty(input.InputMessage)) GUILayout.Label(input.InputMessage, textStyle);
                 if (turns.IsBattleOver)
                     GUILayout.Label(turns.IsPlayerVictory ? "ENEMY DEFEATED\nRestart Play to try again." : "PLAYER DEFEATED", titleStyle);

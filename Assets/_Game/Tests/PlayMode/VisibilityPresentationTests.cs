@@ -43,7 +43,7 @@ namespace MechaXCOM.Tests
             child.GetComponent<Collider>().enabled = false;
             originallyDisabled = child.GetComponent<Renderer>(); originallyDisabled.enabled = false;
             turns = root.AddComponent<TurnManager>();
-            var combat = root.AddComponent<CombatSystem>(); combat.SetRollSource(() => 0);
+            var combat = root.AddTestCombatSystem(); combat.SetRollSource(() => 0);
             var cover = root.AddComponent<CoverSystem>();
             var visualizer = root.AddComponent<GridVisualizer>();
             var debug = root.AddComponent<BattleDebugUI>(); debug.enabled = false;

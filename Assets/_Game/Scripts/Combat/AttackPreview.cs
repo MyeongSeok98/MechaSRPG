@@ -17,11 +17,19 @@ namespace MechaXCOM
         public float PartMultiplier;
         public float HeadMultiplier;
         public int HitChance;
+        public float CriticalChance;
+        public float CriticalDamageMultiplier;
+        public ArmorType TargetArmorType;
+        public float ArmorMultiplier;
         public WeaponSlot WeaponSlot;
         public string WeaponName;
         public int MinDamage, MaxDamage;
         public float GripMultiplier, DistanceMultiplier;
         public float ReactionMultiplier;
+        public float MechaMultiplier;
         public int APCost;
+        public bool UsesAmmo;
+        public bool UsesEnergyPack;
+        public int AmmoLoaded, MagazineCapacity, SpareMagazines;
     }
 }

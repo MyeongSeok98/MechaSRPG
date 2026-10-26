@@ -10,9 +10,9 @@ namespace MechaXCOM.Tests
         public static void MakeCritical(BattleUnit unit)
         {
             unit.Health.SetDestructionRollSource(() => 99);
-            unit.Health.ApplyDamage(TargetBodyPart.Head, 6);
-            unit.Health.ApplyDamage(TargetBodyPart.LeftArm, 8);
-            unit.Health.ApplyDamage(TargetBodyPart.RightArm, 8);
+            unit.Health.ApplyDamage(TargetBodyPart.Head, unit.Health.GetCurrentHP(TargetBodyPart.Head));
+            unit.Health.ApplyDamage(TargetBodyPart.LeftArm, unit.Health.GetCurrentHP(TargetBodyPart.LeftArm));
+            unit.Health.ApplyDamage(TargetBodyPart.RightArm, unit.Health.GetCurrentHP(TargetBodyPart.RightArm));
             Assert.That(unit.Health.State, Is.EqualTo(MechState.Critical));
         }
         public static bool TryEject(BattleUnit unit) => unit.TryEject();

@@ -39,7 +39,7 @@ namespace MechaXCOM.Tests
             var turns = sceneRoot.AddComponent<TurnManager>();
             var controller = sceneRoot.AddComponent<BattleSceneController>();
             controller.Configure(grid, sceneRoot.AddComponent<CoverSystem>(), new[] { player, enemy }, null, null);
-            controller.ConfigureCombat(sceneRoot.AddComponent<CombatSystem>(), turns);
+            controller.ConfigureCombat(sceneRoot.AddTestCombatSystem(), turns);
             Assert.That(controller.InitializeBattle(), Is.True);
             Assert.That(turns.Visibility, Is.Not.Null);
             Assert.That(turns.Visibility.IsVisibleTo(UnitTeam.Player, enemy), Is.True);

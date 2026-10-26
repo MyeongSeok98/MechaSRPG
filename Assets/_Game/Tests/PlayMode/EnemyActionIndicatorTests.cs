@@ -21,7 +21,7 @@ namespace MechaXCOM.Tests
             grid.Configure(16, 16, 2);
             var cover = root.AddComponent<CoverSystem>();
             turns = root.AddComponent<TurnManager>();
-            var combat = root.AddComponent<CombatSystem>();
+            var combat = root.AddTestCombatSystem();
             combat.SetRollSource(() => 0);
             ai = root.AddComponent<EnemyAIController>();
             visualizer = root.AddComponent<GridVisualizer>();

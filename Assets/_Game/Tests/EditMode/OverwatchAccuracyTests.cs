@@ -1,4 +1,3 @@
-using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -9,9 +8,7 @@ namespace MechaXCOM.Tests
         private static int Chance(int baseChance, float part = 1f, float cover = 1f,
             float head = 1f, float grip = 1f, float distance = 1f, float reaction = 1f)
         {
-            var method = typeof(CombatMath).GetMethod("CalculateAttackHitChance", BindingFlags.Public | BindingFlags.Static);
-            Assert.That(method, Is.Not.Null, "The common formula needs a reaction multiplier and no movement evasion.");
-            return (int)method.Invoke(null, new object[] { baseChance, part, cover, head, grip, distance, reaction });
+            return CombatMath.CalculateAttackHitChance(baseChance, part, cover, head, grip, distance, reaction);
         }
 
         [Test] public void ReactionMultiplierAppliesBeforeSingleRounding() =>
@@ -43,7 +40,7 @@ namespace MechaXCOM.Tests
                 var turns = root.AddComponent<TurnManager>(); turns.Initialize(new[] { player, enemy });
                 var vision = root.AddComponent<VisibilitySystem>(); vision.Initialize(grid, new[] { player, enemy });
                 turns.ConfigureVisibility(vision);
-                var combat = root.AddComponent<CombatSystem>(); combat.Initialize(grid, root.AddComponent<CoverSystem>(), turns);
+                var combat = root.AddTestCombatSystem(); combat.Initialize(grid, root.AddComponent<CoverSystem>(), turns);
                 Assert.That(combat.GetPreview(player, enemy, type).HitChance, Is.EqualTo(expected));
                 for (int i = 0; i < 5; i++) enemy.Mobility.RecordCellMoved();
                 var preview = combat.GetPreview(player, enemy, type);

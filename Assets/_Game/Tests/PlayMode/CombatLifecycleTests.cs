@@ -24,7 +24,7 @@ namespace MechaXCOM.Tests
             visibility.Initialize(grid, new[] { player, enemy });
             turns.ConfigureVisibility(visibility);
             player.BindTurnManager(turns); enemy.BindTurnManager(turns);
-            combat = root.AddComponent<CombatSystem>(); combat.Initialize(grid, cover, turns);
+            combat = root.AddTestCombatSystem(); combat.Initialize(grid, cover, turns);
             var ai = root.AddComponent<EnemyAIController>(); ai.Initialize(grid, combat, turns); turns.ConfigureEnemyAI(ai);
             yield return null;
         }

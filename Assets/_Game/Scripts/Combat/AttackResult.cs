@@ -5,6 +5,8 @@ namespace MechaXCOM
         public bool WasExecuted;
         public string FailureReason;
         public bool Hit;
+        public bool IsCritical;
+        public float CriticalChance;
         public int HitChance;
         public int DamageDealt;
         public TargetBodyPart TargetPart;

@@ -16,14 +16,17 @@ MonoBehaviour:
   displayName: Sample Mecha
   description: Sample base specifications. Not connected to battle units yet.
   modelPrefab: {fileID: 1053079044590142513, guid: 6738104dfe3d7e54eade95f1c312405e, type: 3}
+  armorType: 1
   baseAP: 5
+  accuracy: 10
+  evasion: 8
   movementCellsPerAP: 1
-  bodyMaxHP: 20
-  cockpitMaxHP: 6
-  headMaxHP: 6
-  leftArmMaxHP: 8
-  rightArmMaxHP: 8
-  leftLegMaxHP: 10
-  rightLegMaxHP: 10
+  bodyMaxHP: 3500
+  cockpitMaxHP: 1000
+  headMaxHP: 1000
+  leftArmMaxHP: 1400
+  rightArmMaxHP: 1400
+  leftLegMaxHP: 1800
+  rightLegMaxHP: 1800
   chassisWeightTonnes: 0
   equipmentWeightLimitTonnes: 0

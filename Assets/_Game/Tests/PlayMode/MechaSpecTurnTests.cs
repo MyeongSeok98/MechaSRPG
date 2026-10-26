@@ -26,7 +26,7 @@ namespace MechaXCOM.Tests
                 settings.FindProperty("mechaData").objectReferenceValue = data; settings.ApplyModifiedPropertiesWithoutUndo();
                 Assert.That(player.Initialize(grid), Is.True); Assert.That(enemy.Initialize(grid), Is.True);
                 var turns = root.AddComponent<TurnManager>();
-                var combat = root.AddComponent<CombatSystem>(); combat.Initialize(grid, root.AddComponent<CoverSystem>(), turns);
+                var combat = root.AddTestCombatSystem(); combat.Initialize(grid, root.AddComponent<CoverSystem>(), turns);
                 var ai = root.AddComponent<EnemyAIController>(); ai.Initialize(grid, combat, turns); turns.ConfigureEnemyAI(ai);
                 var visibility = root.AddComponent<VisibilitySystem>(); visibility.Initialize(grid, new[] { player, enemy });
                 turns.ConfigureVisibility(visibility); turns.Initialize(new[] { player, enemy });

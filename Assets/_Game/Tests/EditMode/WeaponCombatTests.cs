@@ -27,7 +27,7 @@ namespace MechaXCOM.Tests
             turns = root.AddComponent<TurnManager>(); turns.Initialize(new[] { player, enemy });
             var visibility = root.AddComponent<VisibilitySystem>(); visibility.Initialize(grid, new[] { player, enemy });
             turns.ConfigureVisibility(visibility);
-            combat = root.AddComponent<CombatSystem>(); combat.Initialize(grid, root.AddComponent<CoverSystem>(), turns);
+            combat = root.AddTestCombatSystem(); combat.Initialize(grid, root.AddComponent<CoverSystem>(), turns);
             rifle = Weapon(); loadout = player.gameObject.EnsureTestLoadout();
             loadout.Configure(null, GripMode.OneHand, rifle, GripMode.OneHand);
             combat.SetRollSource(() => { hitRolls++; return 0; });
@@ -208,6 +208,9 @@ namespace MechaXCOM.Tests
         }
         [Test] public void DefaultRollIncludesEndpointsAndDoesNotOverflowMaximum()
         {
+            // This fixture samples 41 independent damage rolls, rather than testing ammo exhaustion.
+            rifle = Weapon(); Set(rifle, "magazineCapacity", 64);
+            loadout.Configure(null, GripMode.OneHand, rifle, GripMode.OneHand);
             combat.SetDamageRollSource(null); var seen = new HashSet<int>();
             var oldRandom = Random.state;
             try

@@ -16,9 +16,34 @@ namespace MechaXCOM
         private BattleUnit[] units = Array.Empty<BattleUnit>();
         private BattleUnit currentMover, currentWatcher;
         private int resolutionVersion;
+        private long lastDecisionId, executingDecisionId;
+        private TargetBodyPart executingPart;
+        private OverwatchDecision? pendingDecision;
+        private IOverwatchDecisionReceiver decisionReceiver;
         public bool IsResolving { get; private set; }
+        public OverwatchDecision? PendingDecision
+        {
+            get { ValidatePending(); return pendingDecision; }
+        }
+        private bool HasDecisionReceiver => decisionReceiver != null &&
+            (!(decisionReceiver is UnityEngine.Object owner) || owner != null) && decisionReceiver.IsReady;
         internal bool IsReady => isActiveAndEnabled && grid && grid.isActiveAndEnabled &&
             combat && combat.isActiveAndEnabled && turns && turns.isActiveAndEnabled && !turns.IsBattleOver;
+
+        public void ConfigureDecisionReceiver(IOverwatchDecisionReceiver receiver)
+        {
+            if (ReferenceEquals(decisionReceiver, receiver)) return;
+            ClearResolution(); decisionReceiver = receiver;
+        }
+        public void UnregisterDecisionReceiver(IOverwatchDecisionReceiver receiver)
+        {
+            if (!ReferenceEquals(decisionReceiver, receiver)) return;
+            ClearResolution(); decisionReceiver = null;
+        }
+        public bool IsResolvingMover(BattleUnit mover)
+        {
+            ValidatePending(); return IsResolving && currentMover == mover;
+        }
 
         public void Initialize(GridManager grid, CombatSystem combat, TurnManager turns, BattleUnit[] units)
         {
@@ -43,7 +68,8 @@ namespace MechaXCOM
             unit.Overwatch && unit.Overwatch.isActiveAndEnabled && !unit.Overwatch.IsActive &&
             unit.Movement && unit.Movement.isActiveAndEnabled && unit.CanTakeAction && turns.CanAct(unit) &&
             unit.ActionPoints.CanSpend(EntryAPCost) &&
-            unit.Combat.TryGetAttack(slot, out var attack, out _) && attack.Type == AttackType.Ranged;
+            unit.Combat.TryGetAttack(slot, out var attack, out _) && attack.Type == AttackType.Ranged &&
+            unit.Ammo && unit.Ammo.CanFire(slot);
 
         public bool TryBegin(BattleUnit unit, WeaponSlot slot, FacingDirection facing)
         {
@@ -60,6 +86,7 @@ namespace MechaXCOM
         {
             var result = new List<GridCell>();
             if (!ValidUnit(unit) || !FacingDirections.IsValid(facing) || !unit.Vision || !unit.Vision.isActiveAndEnabled ||
+                !unit.Ammo || !unit.Ammo.CanFire(slot) ||
                 !unit.Combat.TryGetAttack(slot, out var attack, out _) || attack.Type != AttackType.Ranged) return result;
             foreach (var cell in grid.GetCells())
                 if (CoversCell(unit, cell.Position, attack, facing)) result.Add(cell);
@@ -82,28 +109,88 @@ namespace MechaXCOM
             mover.Movement && mover.Movement.isActiveAndEnabled && mover.Movement.IsMoving && mover.Movement.IsResolvingStep &&
             grid.TryGetCell(mover.CurrentGridPosition, out var cell) && cell.OccupyingUnit == mover;
 
-        internal bool CanResolveShot(BattleUnit watcher, BattleUnit target, WeaponSlot slot) =>
-            IsResolving && currentMover == target && currentWatcher == watcher && ValidMover(target) && ValidUnit(watcher) &&
-            watcher.Team != target.Team && watcher.Overwatch && watcher.Overwatch.IsActive && watcher.Overwatch.Slot == slot &&
+        private bool ValidReaction(BattleUnit watcher, BattleUnit target, WeaponSlot slot) =>
+            ValidMover(target) && ValidUnit(watcher) &&
+            watcher.Team != target.Team && watcher.Overwatch && watcher.Overwatch.CanReactTo(target) && watcher.Overwatch.Slot == slot &&
             watcher.Combat.TryGetAttack(slot, out var attack, out _) && attack.Type == AttackType.Ranged &&
             CoversCell(watcher, target.CurrentGridPosition, attack, watcher.Overwatch.Facing);
 
+        internal bool CanPreviewDecision(BattleUnit watcher, BattleUnit target, WeaponSlot slot) =>
+            IsResolving && HasDecisionReceiver && pendingDecision.HasValue && currentMover == target && currentWatcher == watcher &&
+            pendingDecision.Value.Watcher == watcher && pendingDecision.Value.Target == target && pendingDecision.Value.Slot == slot &&
+            ValidReaction(watcher, target, slot);
+
+        internal bool CanResolveShot(BattleUnit watcher, BattleUnit target, WeaponSlot slot, TargetBodyPart part) =>
+            executingDecisionId != 0 && pendingDecision.HasValue && executingDecisionId == pendingDecision.Value.Id &&
+            executingPart == BodyTargetRules.Normalize(part) && CanPreviewDecision(watcher, target, slot);
+
+        private void ValidatePending()
+        {
+            // A target opportunity is consumed before the damage callbacks run. Do not mistake
+            // that intentional consumption for cancellation of the in-flight decision.
+            if (!IsResolving || executingDecisionId != 0) return;
+            if (!HasDecisionReceiver || !ValidMover(currentMover)) { ClearResolution(); return; }
+            if (pendingDecision.HasValue && !ValidReaction(pendingDecision.Value.Watcher,
+                pendingDecision.Value.Target, pendingDecision.Value.Slot)) pendingDecision = null;
+        }
+        private bool HasPending(long id)
+        {
+            ValidatePending();
+            return executingDecisionId == 0 && pendingDecision.HasValue && pendingDecision.Value.Id == id;
+        }
+        public AttackPreview GetDecisionPreview(long id, TargetBodyPart part)
+        {
+            if (!HasPending(id)) return new AttackPreview { FailureReason = "No matching overwatch decision." };
+            var decision = pendingDecision.Value;
+            return combat.GetOverwatchPreview(decision.Watcher, decision.Target, decision.Slot, part);
+        }
+        public AttackResult TryFire(long id, TargetBodyPart part)
+        {
+            var preview = GetDecisionPreview(id, part);
+            if (!preview.CanAttack) return new AttackResult { FailureReason = preview.FailureReason };
+            var decision = pendingDecision.Value;
+            int version = resolutionVersion;
+            executingDecisionId = id; executingPart = preview.TargetPart;
+            try { return combat.TryOverwatchAttack(decision.Watcher, decision.Target, decision.Slot, preview.TargetPart); }
+            finally
+            {
+                if (version == resolutionVersion)
+                {
+                    executingDecisionId = 0;
+                    if (pendingDecision.HasValue && pendingDecision.Value.Id == id) pendingDecision = null;
+                }
+            }
+        }
+        public bool TrySkip(long id)
+        {
+            if (!HasPending(id)) return false;
+            var decision = pendingDecision.Value;
+            if (!decision.Watcher.Overwatch.TryConsumeTarget(decision.Target)) return false;
+            pendingDecision = null; return true;
+        }
+
         public IEnumerator ResolveAfterStep(BattleUnit mover)
         {
-            if (IsResolving || !ValidMover(mover)) yield break;
+            if (IsResolving || !ValidMover(mover) || !HasDecisionReceiver) yield break;
             int version = ++resolutionVersion;
             currentMover = mover; IsResolving = true;
             try
             {
-                // Attacks are instant in this prototype. Resolve the ordered batch without yielding
-                // between shooters, so AI cannot cancel a newly Critical mover before the remaining shots.
                 foreach (var watcher in units)
                 {
-                    if (version != resolutionVersion || !ValidMover(mover)) break;
+                    if (version != resolutionVersion || !ValidMover(mover) || !HasDecisionReceiver) break;
                     currentWatcher = watcher;
                     if (!watcher || !watcher.Overwatch) continue;
                     var slot = watcher.Overwatch.Slot;
-                    if (CanResolveShot(watcher, mover, slot)) combat.TryOverwatchAttack(watcher, mover, slot);
+                    if (!ValidReaction(watcher, mover, slot)) continue;
+                    if (lastDecisionId == long.MaxValue) yield break;
+                    pendingDecision = new OverwatchDecision(++lastDecisionId, watcher, mover, slot);
+                    while (version == resolutionVersion && pendingDecision.HasValue)
+                    {
+                        ValidatePending();
+                        if (version != resolutionVersion || !pendingDecision.HasValue) break;
+                        yield return null;
+                    }
                 }
             }
             finally
@@ -115,6 +202,7 @@ namespace MechaXCOM
         {
             resolutionVersion++;
             IsResolving = false; currentMover = null; currentWatcher = null;
+            pendingDecision = null; executingDecisionId = 0;
         }
         internal void CancelForMover(BattleUnit mover)
         {

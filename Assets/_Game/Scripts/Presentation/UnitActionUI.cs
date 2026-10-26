@@ -7,12 +7,13 @@ namespace MechaXCOM
     {
         private bool IsOverwatchWeaponMenu => input && input.ActionMode == UnitActionMode.OverwatchWeapon;
         private bool IsOverwatchFacing => input && input.ActionMode == UnitActionMode.OverwatchFacing;
+        private bool IsReloadWeaponMenu => input && input.IsReloadWeaponMenuOpen;
         private bool IsDirectionMenu => input && (input.ActionMode == UnitActionMode.Facing || IsOverwatchFacing);
-        private System.Collections.Generic.IReadOnlyList<WeaponSlot> WeaponChoices => IsOverwatchWeaponMenu
-            ? input.GetOverwatchWeaponSlots() : input.GetAvailableWeaponSlots();
+        private System.Collections.Generic.IReadOnlyList<WeaponSlot> WeaponChoices => IsReloadWeaponMenu
+            ? input.GetReloadWeaponSlots() : IsOverwatchWeaponMenu ? input.GetOverwatchWeaponSlots() : input.GetAvailableWeaponSlots();
         public Rect GetWeaponButtonRect(WeaponSlot slot)
         {
-            if (!input || (!input.IsWeaponMenuOpen && !IsOverwatchWeaponMenu)) return default;
+            if (!input || (!input.IsWeaponMenuOpen && !IsOverwatchWeaponMenu && !IsReloadWeaponMenu)) return default;
             var slots = WeaponChoices;
             for (int i = 0; i < slots.Count; i++) if (slots[i] == slot) return AttackRow(i);
             return default;
@@ -23,7 +24,9 @@ namespace MechaXCOM
             var loadout = input.SelectedUnit.GetComponent<UnitWeaponLoadout>();
             var grip = slot == WeaponSlot.LeftHand ? loadout.LeftGrip : loadout.RightGrip;
             string hand = grip == GripMode.TwoHands ? "Both hands" : slot == WeaponSlot.LeftHand ? "Left" : "Right";
-            return $"{hand}: {stats.DisplayName}";
+            var ammo = input.SelectedUnit.Ammo ? input.SelectedUnit.Ammo.GetStatus(slot) : default;
+            string cost = IsReloadWeaponMenu ? $"Reload AP {ammo.ReloadAPCost}" : $"AP {stats.APCost}";
+            return $"{hand}: {stats.DisplayName}\n{(ammo.UsesAmmo ? $"{ammo.Loaded}/{ammo.Capacity} · 예비 {ammo.SpareMagazines} / " : "")}{cost}";
         }
         public string WeaponInfoText => input ? input.CurrentAttackPreview.WeaponName : string.Empty;
         public string AttackInfoText => input ? AttackPreviewText.HitAndDamage(input.CurrentAttackPreview) : string.Empty;
@@ -36,8 +39,8 @@ namespace MechaXCOM
         public void Initialize(PlayerInputController input, Camera battleCamera)
         { this.input = input; this.battleCamera = battleCamera; bodyTargetUI = GetComponent<BodyTargetUI>(); }
         private float Scale => Mathf.Clamp(Mathf.Min(Screen.width / 1280f, Screen.height / 720f), .25f, 1f);
-        public bool IsVisible => isActiveAndEnabled && input && (input.CanManageSelectedUnit || input.IsFacingPanelVisible) &&
-            battleCamera && (IsDirectionMenu || IsOverwatchWeaponMenu || input.ActionMode == UnitActionMode.Menu ||
+        public bool IsVisible => isActiveAndEnabled && input && !input.HasPendingOverwatchDecision && (input.CanManageSelectedUnit || input.IsFacingPanelVisible) &&
+            battleCamera && (IsDirectionMenu || IsOverwatchWeaponMenu || IsReloadWeaponMenu || input.ActionMode == UnitActionMode.Menu ||
                 (input.ActionMode == UnitActionMode.Attack && input.TargetUnit)) && InView();
         private bool InView()
         {
@@ -51,7 +54,7 @@ namespace MechaXCOM
             var point = battleCamera.WorldToScreenPoint(input.SelectedUnit.transform.position);
             float width = 190 * Scale;
             bool target = input.ActionMode == UnitActionMode.Attack && input.TargetUnit;
-            float height = (IsDirectionMenu ? 224 : target ? 320 : 192) * Scale;
+            float height = (IsDirectionMenu ? 224 : target ? 320 : 224) * Scale;
             // Additional action rows grow upward from the original three-action menu's lower edge,
             // rather than covering nearby unit clicks below that edge.
             float verticalOffset = IsDirectionMenu || target ? height / 2 : height - 80 * Scale;
@@ -72,14 +75,15 @@ namespace MechaXCOM
         public Rect AttackButtonRect => Row(1);
         public Rect EjectButtonRect => Row(2);
         public Rect OverwatchButtonRect => input && input.ActionMode == UnitActionMode.Attack ? default : Row(3);
+        public Rect ReloadButtonRect => input && input.ActionMode == UnitActionMode.Attack ? default : Row(4);
         public Rect FireButtonRect => Row(7);
         public Rect GetFacingButtonRect(FacingDirection facing) => Row((int)facing);
         public Rect ConfirmFacingButtonRect => Row(4);
         public bool TryGetAttackMenuRect(out Rect rect)
         {
             rect = default;
-            if (!input || (!input.IsAttackMenuOpen && !input.IsWeaponMenuOpen && !IsOverwatchWeaponMenu) || !TryGetPanelRect(out var main)) return false;
-            float width = 220 * Scale, gap = 8 * Scale, height = 108 * Scale;
+            if (!input || (!input.IsAttackMenuOpen && !input.IsWeaponMenuOpen && !IsOverwatchWeaponMenu && !IsReloadWeaponMenu) || !TryGetPanelRect(out var main)) return false;
+            float width = 220 * Scale, gap = 8 * Scale, height = 128 * Scale;
             float x = main.xMax + gap;
             if (x + width > Screen.width - gap) x = main.xMin - gap - width;
             rect = new Rect(Mathf.Clamp(x, gap, Screen.width - width - gap),
@@ -89,7 +93,7 @@ namespace MechaXCOM
         private Rect AttackRow(int row)
         {
             if (!TryGetAttackMenuRect(out var rect)) return default;
-            return new Rect(rect.x + 8 * Scale, rect.y + (32 + row * 32) * Scale, rect.width - 16 * Scale, 28 * Scale);
+            return new Rect(rect.x + 8 * Scale, rect.y + (32 + row * 44) * Scale, rect.width - 16 * Scale, 40 * Scale);
         }
         private Vector2 GuiPoint(Vector2 screenPoint) => new Vector2(screenPoint.x, Screen.height - screenPoint.y);
         public bool ContainsScreenPoint(Vector2 point) =>
@@ -114,12 +118,13 @@ namespace MechaXCOM
                 }
                 return;
             }
-            if ((input.IsWeaponMenuOpen || IsOverwatchWeaponMenu) && TryGetAttackMenuRect(out var weaponMenu) && weaponMenu.Contains(guiPoint))
+            if ((input.IsWeaponMenuOpen || IsOverwatchWeaponMenu || IsReloadWeaponMenu) && TryGetAttackMenuRect(out var weaponMenu) && weaponMenu.Contains(guiPoint))
             {
                 foreach (var slot in WeaponChoices)
                     if (GetWeaponButtonRect(slot).Contains(guiPoint))
                     {
-                        if (IsOverwatchWeaponMenu) input.BeginOverwatch(slot); else input.BeginWeaponAttack(slot);
+                        if (IsReloadWeaponMenu) input.TryReloadSelected(slot);
+                        else if (IsOverwatchWeaponMenu) input.BeginOverwatch(slot); else input.BeginWeaponAttack(slot);
                         return;
                     }
                 return;
@@ -128,6 +133,7 @@ namespace MechaXCOM
             else if (EjectButtonRect.Contains(guiPoint)) input.TryEjectSelected();
             else if (AttackButtonRect.Contains(guiPoint)) input.OpenAttackMenu();
             else if (OverwatchButtonRect.Contains(guiPoint)) input.OpenOverwatchMenu();
+            else if (ReloadButtonRect.Contains(guiPoint)) input.OpenReloadMenu();
             else if (input.ActionMode == UnitActionMode.Attack && input.TargetUnit &&
                 FireButtonRect.Contains(guiPoint) && input.CurrentAttackPreview.CanAttack) input.TryAttackSelected();
         }
@@ -138,6 +144,7 @@ namespace MechaXCOM
             var title = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(15 * Scale), fontStyle = FontStyle.Bold };
             var text = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(13 * Scale), wordWrap = true };
             var button = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(14 * Scale) };
+            var weaponButton = new GUIStyle(button) { fontSize = Mathf.RoundToInt(12 * Scale), wordWrap = true };
             GUI.Box(rect, GUIContent.none);
             GUI.Label(new Rect(rect.x + 8 * Scale, rect.y + 5 * Scale, rect.width - 16 * Scale, 24 * Scale),
                 $"{input.SelectedUnit.name} / AP {input.SelectedUnit.ActionPoints.CurrentPoints}", title);
@@ -170,17 +177,19 @@ namespace MechaXCOM
                 GUI.enabled = oldEnabled && input.CanOpenOverwatchMenu;
                 GUI.Button(OverwatchButtonRect, input.SelectedUnit.Overwatch && input.SelectedUnit.Overwatch.IsActive
                     ? "Overwatch [active]" : "Overwatch / AP 2", button);
+                GUI.enabled = oldEnabled && input.CanOpenReloadMenu;
+                GUI.Button(ReloadButtonRect, IsReloadWeaponMenu ? "Reload [selected]" : "Reload", button);
             }
             GUI.enabled = oldEnabled;
             if (TryGetAttackMenuRect(out var choices))
             {
                 GUI.Box(choices, GUIContent.none);
                 GUI.Label(new Rect(choices.x + 8 * Scale, choices.y + 5 * Scale, choices.width - 16 * Scale, 24 * Scale),
-                    IsOverwatchWeaponMenu ? "Overwatch weapon" : "Choose weapon", title);
+                    IsReloadWeaponMenu ? "Reload weapon" : IsOverwatchWeaponMenu ? "Overwatch weapon" : "Choose weapon", title);
                 foreach (var slot in WeaponChoices)
                 {
-                    GUI.enabled = oldEnabled && (IsOverwatchWeaponMenu ? input.CanBeginOverwatch(slot) : input.CanBeginWeaponAttack(slot));
-                    GUI.Button(GetWeaponButtonRect(slot), GetWeaponButtonText(slot), button);
+                    GUI.enabled = oldEnabled && (IsReloadWeaponMenu ? input.CanReloadWeapon(slot) : IsOverwatchWeaponMenu ? input.CanBeginOverwatch(slot) : input.CanBeginWeaponAttack(slot));
+                    GUI.Button(GetWeaponButtonRect(slot), GetWeaponButtonText(slot), weaponButton);
                 }
                 GUI.enabled = oldEnabled;
             }

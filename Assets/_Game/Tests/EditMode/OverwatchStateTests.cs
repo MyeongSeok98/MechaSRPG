@@ -34,7 +34,7 @@ namespace MechaXCOM.Tests
             Ally = Unit(new Vector2Int(1, 1), UnitTeam.Player);
             Enemy = Unit(new Vector2Int(3, 5), UnitTeam.Enemy);
             Turns = Root.AddComponent<TurnManager>();
-            Combat = Root.AddComponent<CombatSystem>();
+            Combat = Root.AddTestCombatSystem();
             var setup = Root.AddComponent<BattleSceneController>();
             setup.Configure(Grid, Root.AddComponent<CoverSystem>(), new[] { Player, Ally, Enemy }, null, null);
             setup.ConfigureCombat(Combat, Turns);
@@ -153,12 +153,14 @@ namespace MechaXCOM.Tests
             Assert.That(battle.Active, Is.False); Assert.That(battle.Player.ActionPoints.CurrentPoints, Is.EqualTo(5));
         }
         [Test]
-        public void GuardCanBeConsumedOnlyOnceWithoutFurtherAPCost()
+        public void TargetOpportunityCanBeConsumedOnlyOnceWithoutEndingGuardOrSpendingAP()
         {
             Assert.That(battle.Begin(), Is.True);
-            var consume = battle.StateType.GetMethod("TryConsume", BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(consume.Invoke(battle.State, null), Is.True); Assert.That(consume.Invoke(battle.State, null), Is.False);
-            Assert.That(battle.Active, Is.False); Assert.That(battle.Player.ActionPoints.CurrentPoints, Is.EqualTo(3));
+            var consume = battle.StateType.GetMethod("TryConsumeTarget", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(consume, Is.Not.Null);
+            Assert.That(consume.Invoke(battle.State, new object[] { battle.Enemy }), Is.True);
+            Assert.That(consume.Invoke(battle.State, new object[] { battle.Enemy }), Is.False);
+            Assert.That(battle.Active, Is.True); Assert.That(battle.Player.ActionPoints.CurrentPoints, Is.EqualTo(3));
         }
         [Test]
         public void CriticalStateCancelsGuardWithoutRefund()

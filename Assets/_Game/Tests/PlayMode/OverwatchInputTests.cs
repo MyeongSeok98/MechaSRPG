@@ -55,6 +55,8 @@ namespace MechaXCOM.Tests
             input = battle.Root.AddComponent<PlayerInputController>(); input.Initialize(camera, battle.Grid, visualizer, debug);
             input.InitializeCombat(battle.Combat, battle.Turns); debug.InitializeCombat(input, battle.Turns);
             menu = battle.Root.GetComponent<UnitActionUI>();
+            battle.Root.AddComponent<OverwatchDecisionController>().Initialize(battle.Overwatch, input,
+                battle.Root.GetComponent<BodyTargetUI>());
             mouse = InputSystem.AddDevice<Mouse>(); keyboard = InputSystem.AddDevice<Keyboard>();
             Physics.SyncTransforms(); yield return null;
             Assert.That(input.SelectUnit(battle.Watcher), Is.True);

@@ -23,7 +23,14 @@ namespace MechaXCOM.EditorTools
             Field("minDamage", "최소 피해"); Field("maxDamage", "최대 피해");
             Field("baseHitChance", "기본 명중률 (%)"); Field("range", "사거리 (칸)");
             Field("apCost", "공격 AP 비용"); Field("weightTonnes", "중량 (t)");
-            EditorGUILayout.HelpBox("중량과 무기 분류는 현재 추가 효과를 주지 않습니다.", MessageType.Info);
+            if (type.hasMultipleDifferentValues || type.intValue == (int)AttackType.Ranged)
+            {
+                Field("magazineCapacity", "장탄 수 (발/탄창·팩)");
+                Field("spareMagazineCount", "예비 탄창·팩 개수");
+                Field("reloadAPCost", "재장전 AP 비용");
+                EditorGUILayout.HelpBox("만탄 1개와 예비 개수만큼 출격합니다. 사격·경계사격마다 1발 소모하며, 재장전하면 잔탄을 버리고 예비 1개로 교체합니다.", MessageType.Info);
+            }
+            EditorGUILayout.HelpBox("빔·실탄 분류는 대상 장갑에 따라 피해량이 보정됩니다. 폭발물·근접은 장갑 상성이 없으며 중량 효과는 아직 적용하지 않습니다.", MessageType.Info);
             Field("gripRequirement", "파지 조건");
             var grip = serializedObject.FindProperty("gripRequirement");
             if (grip.hasMultipleDifferentValues || grip.intValue == (int)GripRequirement.Either)

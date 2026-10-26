@@ -1,5 +1,7 @@
 # Overwatch Implementation Plan
 
+> 변경 이력: 적별 수동 부위 조준·Fire/Skip 규칙은 [2026-10-22 설계](../specs/2026-10-22-interactive-overwatch-design.md)를 따른다. 아래 내용은 최초 구현 기록으로 보존한다.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** AP 2로 전방 90도 경계에 진입하고, 적 이동 중 명중률 ×0.75의 몸통 사격을 1회 수행한다. 기존 기동 회피의 명중률 차감은 제거한다.

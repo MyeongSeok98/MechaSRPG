@@ -94,14 +94,17 @@ BattleSceneController는 전체 전투의 초기 연결을, BattleUnit은 개별
 | 항목 | 현재 출처·처리 |
 |---|---|
 | 기체 최대 HP·기본 AP·모델 | MechaData → BattleUnit → 각 컴포넌트 |
+| 기체 명중력·회피력 (0~50) | MechaData → BattleUnit 초기 스냅샷 → CombatMath 기체 배율 → CombatSystem 공통 명중률 |
 | 현재 HP·AP·손상 | 유닛별 UnitHealth·UnitActionPoints |
 | 무기 피해·기본 명중률·사거리·공격 AP | WeaponData → UnitWeaponLoadout → UnitCombat → CombatSystem |
 | 이동 범위·다리 손상 이동 제한 | BattleUnit |
+| 팔 손상 무장 제한·사용 가능한 슬롯 | UnitCombat.TryGetAttack (일반/AI/경계 공통) |
+| 팔 파괴 시 겸용 무기 한손 전환 | UnitHealth.PartDestroyed → BattleUnit → UnitWeaponLoadout, 살아 있는 손 슬롯으로 변경·Changed 알림 |
 | 이동·회전 속도 | UnitMovement |
 | 기동 회피 | UnitMobility에 기존 기록만 유지. 공격 명중률에는 미적용 |
-| 경계 무기·방향·남은 1회 | 유닛별 UnitOverwatch |
+| 경계 무기·방향·적별 처리 기록 | 유닛별 UnitOverwatch |
 | 경계 진입 AP 2·개인 감시 범위·반응 순서 | OverwatchSystem |
-| 반응 명중률 ×0.75·몸통 피해 | OverwatchSystem의 권한 검사 → CombatSystem 공통 계산·피해 처리 |
+| 반응 명중률 ×0.75·선택 부위 피해 | OverwatchSystem의 권한 검사 → CombatSystem 공통 계산·피해 처리 |
 | 탐지 거리 | UnitVision 자체 설정. 아직 MechaData 항목과 연결하지 않음 |
 | AP당 이동거리·기체 중량·장착 한도 | MechaData에 저장만 함. 이동 비용·중량 제한에 미적용 |
 | 데이터 없는 유닛 | 기존 HP·AP 컴포넌트 설정으로 초기화 |
@@ -114,7 +117,10 @@ flowchart TD
     OW -->|AP 2 소비·무기와 방향 저장| STATE["UnitOverwatch"]
     MOVE["UnitMovement<br/>한 칸 점유·AP·이동 기록 확정"] -->|칸 완료 후 반응 요청| OW
     OW -->|등록 순서·개인 시야·사선·범위 재검사| STATE
-    OW -->|현재 사수·현재 이동 표적만 허용| COMBAT["CombatSystem<br/>몸통 1회·명중률 ×0.75·추가 AP 0"]
+    OW -->|고유 요청 ID·등록 순서로 한 창씩| DECISION["OverwatchDecisionController<br/>표시 ID·선택 부위·수신자 수명"]
+    DECISION <-->|부위 선택·Fire/Skip| UI["BodyTargetUI + PlayerInputController"]
+    DECISION -->|TryFire 또는 TrySkip| OW
+    OW -->|현재 요청의 사수·표적·무기·부위 실행 승인| COMBAT["CombatSystem<br/>선택 부위·명중률 ×0.75·추가 AP 0"]
     COMBAT -->|공통 피해 경로| HP["UnitHealth"]
     OW -->|반응 완료| MOVE
     HP -->|상태 반영| MOVE
@@ -125,9 +131,9 @@ flowchart TD
 
 일반 공격은 자신의 진영 턴·AP·행동 가능 조건을 그대로 검사한다. 반응 공격은 OverwatchSystem이 현재 처리 중인 칸 완료와 사수·표적 조합을 승인해야 실행할 수 있다. 일반 공격의 권한을 포괄적으로 완화하지 않는다.
 
-UnitOverwatch는 무기·파지·방향·진입 위치와 유효 상태를 관리하고, OverwatchSystem은 비용·범위·발동 순서를 담당한다. 발사 전에 경계 1회를 소비하므로 명중과 빗나감 모두 재발사하지 않는다. 이동 취소·비활성화·전투 종료 시 처리 중 참조와 잠금을 정리한다. 반응 처리 중에는 턴 종료와 새 행동을 제한한다.
+UnitOverwatch는 무기·파지·방향·진입 위치와 유효 상태를 관리하고, OverwatchSystem은 비용·범위·발동 순서를 담당한다. 발사 또는 Skip 시 해당 적의 처리 기록을 남겨 같은 적에게 다시 묻지 않는다. 다른 적에 대한 경계는 유지한다. 요청 ID와 배치 버전을 구분해 오래된 입력·재진입을 거부한다. 수신자가 준비되지 않으면 자동 사격 없이 대기를 해제한다. 이동 취소·비활성화·전투 종료 시 처리 중 참조와 잠금을 정리한다. 팔 파괴로 경계 무기가 사용 불가가 되거나 양손→한손 전환이 일어나면 기존 경계를 해제한다. 반대쪽 팔만 파괴된 정상 한손 경계는 유지한다. 반응 처리 중에는 턴 종료와 새 행동을 제한하고 카메라 조작을 허용한다. AI와 이동은 결정을 기다리며 Critical 표적의 후속 사수 처리 뒤 이동/공격 가능 상태를 다시 확인한다.
 
-기동 회피는 명중률에서 제외했다. 파일럿 CharacterData와 패시브 인터페이스는 정의되어 있지만 전투 계산에는 아직 연결하지 않았다. 자세한 규칙은 [경계사격 안내](overwatch-guide.ko.md)를 참고한다.
+기동 회피는 명중률에서 제외했다. 파일럿 CharacterData와 패시브 인터페이스는 정의되어 있지만 전투 계산에는 아직 연결하지 않았다. 자세한 규칙은 [경계사격 안내](overwatch-guide.ko.md)와 [명중률 밸런싱 안내](hit-chance-balancing.ko.md)를 참고한다.
 
 ## 주요 소스 위치
 

@@ -2,15 +2,26 @@ using UnityEngine;
 
 namespace MechaXCOM
 {
+    public enum ArmorType
+    {
+        [InspectorName("일반 장갑")] Standard = 0,
+        [InspectorName("대빔 장갑")] BeamResistant = 1,
+        [InspectorName("대실탄 장갑")] BallisticResistant = 2
+    }
+
     // Shared type specifications only. Current HP, AP and equipment belong to each unit.
     [CreateAssetMenu(fileName = "NewMecha", menuName = "MechaXCOM/Mecha Data")]
     public class MechaData : ScriptableObject
     {
+        public const int MaxCombatStat = 50;
         [SerializeField] private string mechaId;
         [SerializeField] private string displayName;
         [SerializeField, TextArea(3, 6)] private string description;
         [SerializeField] private GameObject modelPrefab;
+        [SerializeField] private ArmorType armorType = ArmorType.Standard;
         [SerializeField, Min(1)] private int baseAP = 5;
+        [SerializeField, Range(0, MaxCombatStat)] private int accuracy;
+        [SerializeField, Range(0, MaxCombatStat)] private int evasion;
         [SerializeField, Min(0)] private float movementCellsPerAP = 1f;
         [SerializeField, Min(1)] private int bodyMaxHP = 20;
         [SerializeField, Min(1)] private int cockpitMaxHP = 6;
@@ -26,7 +37,10 @@ namespace MechaXCOM
         public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
         public string Description => description;
         public GameObject ModelPrefab => modelPrefab;
+        public ArmorType ArmorType => armorType;
         public int BaseAP => baseAP;
+        public int Accuracy => accuracy;
+        public int Evasion => evasion;
         public float MovementCellsPerAP => movementCellsPerAP;
         public float ChassisWeightTonnes => chassisWeightTonnes;
         public float EquipmentWeightLimitTonnes => equipmentWeightLimitTonnes;
@@ -48,7 +62,10 @@ namespace MechaXCOM
         {
             reason = null;
             if (string.IsNullOrWhiteSpace(mechaId)) reason = "기체 ID를 입력하세요.";
+            else if (!System.Enum.IsDefined(typeof(ArmorType), armorType)) reason = "유효한 장갑 타입을 선택하세요.";
             else if (baseAP < 1) reason = "기본 AP는 1 이상이어야 합니다.";
+            else if (accuracy < 0 || accuracy > MaxCombatStat || evasion < 0 || evasion > MaxCombatStat)
+                reason = "기체 명중력과 회피력은 0~50이어야 합니다.";
             else if (!Finite(movementCellsPerAP) || movementCellsPerAP <= 0)
                 reason = "AP당 이동거리는 0보다 큰 유한한 값이어야 합니다.";
             else if (bodyMaxHP < 1 || cockpitMaxHP < 1 || headMaxHP < 1 || leftArmMaxHP < 1 ||
@@ -63,6 +80,8 @@ namespace MechaXCOM
         private void OnValidate()
         {
             baseAP = Mathf.Max(1, baseAP);
+            accuracy = Mathf.Clamp(accuracy, 0, MaxCombatStat);
+            evasion = Mathf.Clamp(evasion, 0, MaxCombatStat);
             if (!Finite(movementCellsPerAP) || movementCellsPerAP <= 0) movementCellsPerAP = 1f;
             bodyMaxHP = Mathf.Max(1, bodyMaxHP); cockpitMaxHP = Mathf.Max(1, cockpitMaxHP);
             headMaxHP = Mathf.Max(1, headMaxHP);

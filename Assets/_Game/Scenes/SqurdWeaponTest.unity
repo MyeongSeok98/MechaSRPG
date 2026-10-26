@@ -1091,6 +1091,10 @@ PrefabInstance:
       propertyPath: startGridPosition.y
       value: 10
       objectReference: {fileID: 0}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1273,6 +1277,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player 1 (3,3)
       objectReference: {fileID: 0}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1494,6 +1502,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player 2 (5,3)
       objectReference: {fileID: 0}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1713,6 +1725,10 @@ PrefabInstance:
       propertyPath: startGridPosition.y
       value: 10
       objectReference: {fileID: 0}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2179,6 +2195,10 @@ PrefabInstance:
       propertyPath: startGridPosition.y
       value: 10
       objectReference: {fileID: 0}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2396,6 +2416,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player 3 (7,3)
       objectReference: {fileID: 0}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

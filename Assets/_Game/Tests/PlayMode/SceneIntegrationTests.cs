@@ -53,6 +53,7 @@ namespace MechaXCOM.Tests
             turns = Object.FindFirstObjectByType<TurnManager>();
             combat = Object.FindFirstObjectByType<CombatSystem>();
             combat.SetRollSource(() => 99);
+            combat.SetCriticalRollSource(() => 99f);
             grid = Object.FindFirstObjectByType<GridManager>();
             input = Object.FindFirstObjectByType<PlayerInputController>();
             cover = Object.FindFirstObjectByType<CoverSystem>();
@@ -114,9 +115,10 @@ namespace MechaXCOM.Tests
             Assert.That(input.TrySelectTarget(enemy), Is.True);
             var preview = input.CurrentAttackPreview;
             Assert.That(preview.WeaponName, Is.EqualTo(rifle.DisplayName));
-            Assert.That(preview.MinDamage, Is.EqualTo(4)); Assert.That(preview.MaxDamage, Is.EqualTo(6));
+            Assert.That(preview.MinDamage, Is.EqualTo(700)); Assert.That(preview.MaxDamage, Is.EqualTo(1000));
             combat.SetRollSource(() => 0); combat.SetDamageRollSource((min, max) => max);
-            Assert.That(input.TryAttackSelected().DamageDealt, Is.EqualTo(6));
+            int expectedDamage = Mathf.Min(enemy.Health.GetCurrentHP(TargetBodyPart.Torso), 1000);
+            Assert.That(input.TryAttackSelected().DamageDealt, Is.EqualTo(expectedDamage));
             Assert.That(unit.ActionPoints.CurrentPoints, Is.EqualTo(2));
             Assert.That(File.ReadAllBytes(loadedScenePath), Is.EqualTo(savedSceneBytes));
         }

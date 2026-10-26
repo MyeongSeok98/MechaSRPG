@@ -34,6 +34,7 @@ namespace MechaXCOM.Tests
             input = Object.FindFirstObjectByType<PlayerInputController>();
             combat = Object.FindFirstObjectByType<CombatSystem>();
             combat.SetRollSource(() => 0);
+            combat.SetCriticalRollSource(() => 99f);
             combat.SetDamageRollSource((min, max) => (min + max) / 2);
         }
         [UnityTearDown]
@@ -80,7 +81,7 @@ namespace MechaXCOM.Tests
             Assert.That(input.TryEjectSelected(), Is.True);
             Assert.That(unit.GetComponentsInChildren<Renderer>(true).All(r => !r.enabled), Is.True);
             Assert.That(unit.GetComponent<CapsuleCollider>().enabled, Is.False);
-            players[1].Health.ApplyDamage(TargetBodyPart.Torso, 20);
+            players[1].Health.ApplyDamage(TargetBodyPart.Torso, players[1].Health.GetCurrentHP(TargetBodyPart.Torso));
             Assert.That(players[1].GetComponentsInChildren<Renderer>(true).All(r => !r.enabled), Is.True);
             Assert.That(turns.IsBattleOver, Is.False);
         }
@@ -115,18 +116,21 @@ namespace MechaXCOM.Tests
                 yield return WaitForPlayerTurn();
             }
             Assert.That(rolls, Is.GreaterThan(0), "Enemies must reach and attack the squad.");
-            Assert.That(players.Any(p => !p || p.Health.GetCurrentHP(TargetBodyPart.Torso) < 20), Is.True);
+            Assert.That(players.Any(p => !p || p.Health.GetCurrentHP(TargetBodyPart.Torso) < p.Health.GetMaxHP(TargetBodyPart.Torso)), Is.True);
             var attacker = players.First(p => p && enemies.Any(e => e && combat.GetPreview(p, e).CanAttack));
             var target = enemies.First(e => e && combat.GetPreview(attacker, e).CanAttack);
             input.SelectUnit(attacker);
             Assert.That(input.BeginAttack(), Is.True);
             Assert.That(input.TrySelectTarget(target), Is.True);
             var preview = input.CurrentAttackPreview;
-            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(20));
+            int torsoHP = target.Health.GetCurrentHP(TargetBodyPart.Torso);
+            Assert.That(torsoHP, Is.EqualTo(target.Health.GetMaxHP(TargetBodyPart.Torso)));
+            attacker.Combat.TryGetAttack(preview.WeaponSlot, out var attackStats, out _);
+            int expectedDamage = AuthoredWeaponDamageExpectation.Normal(target, attackStats.Weapon, (preview.MinDamage + preview.MaxDamage) / 2);
             Assert.That(input.TryAttackSelected().WasExecuted, Is.True);
             Assert.That(attacker.ActionPoints.CurrentPoints, Is.EqualTo(5 - preview.APCost));
             Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso),
-                Is.EqualTo(20 - (preview.MinDamage + preview.MaxDamage) / 2));
+                Is.EqualTo(Mathf.Max(0, torsoHP - expectedDamage)));
             Assert.That(players.Where(p => p && p != attacker).All(p => p.ActionPoints.CurrentPoints == 5), Is.True);
         }
         [UnityTest]
@@ -154,15 +158,24 @@ namespace MechaXCOM.Tests
             target.transform.position = destination.WorldPosition + Vector3.up * target.HeightOffset;
             Physics.SyncTransforms();
             target.Health.SetDestructionRollSource(() => 99);
-            var ranged = combat.TryAttack(attacker, target, AttackType.Ranged, TargetBodyPart.Cockpit);
+            // A leg survives a normal rifle hit at the approved sample damage scale.
+            var rangedPreview = combat.GetPreview(attacker, target, AttackType.Ranged, TargetBodyPart.RightLeg);
+            attacker.Combat.TryGetAttack(rangedPreview.WeaponSlot, out var rangedStats, out _);
+            int rangedDamage = AuthoredWeaponDamageExpectation.Normal(target, rangedStats.Weapon, (rangedPreview.MinDamage + rangedPreview.MaxDamage) / 2);
+            var ranged = combat.TryAttack(attacker, target, AttackType.Ranged, TargetBodyPart.RightLeg);
             Assert.That(ranged.Hit, Is.True);
-            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Cockpit), Is.EqualTo(1));
-            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(20));
+            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.RightLeg),
+                Is.EqualTo(Mathf.Max(0, target.Health.GetMaxHP(TargetBodyPart.RightLeg) - rangedDamage)));
+            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(target.Health.GetMaxHP(TargetBodyPart.Torso)));
             attacker.ActionPoints.ResetForTurn();
+            var meleePreview = combat.GetPreview(attacker, target, AttackType.Melee, TargetBodyPart.Head);
+            attacker.Combat.TryGetAttack(meleePreview.WeaponSlot, out var meleeStats, out _);
+            int meleeDamage = AuthoredWeaponDamageExpectation.Normal(target, meleeStats.Weapon, (meleePreview.MinDamage + meleePreview.MaxDamage) / 2);
             var melee = combat.TryAttack(attacker, target, AttackType.Melee, TargetBodyPart.Head);
             Assert.That(melee.Hit, Is.True);
-            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(12));
-            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Head), Is.EqualTo(6));
+            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso),
+                Is.EqualTo(Mathf.Max(0, target.Health.GetMaxHP(TargetBodyPart.Torso) - meleeDamage)));
+            Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Head), Is.EqualTo(target.Health.GetMaxHP(TargetBodyPart.Head)));
             foreach (var foe in enemies) MechStateTestRules.MakeCritical(foe);
             MechStateTestRules.MakeCritical(attacker);
             Assert.That(turns.IsBattleOver, Is.False);
@@ -176,16 +189,16 @@ namespace MechaXCOM.Tests
             Assert.That(ally.ActionPoints.CurrentPoints, Is.EqualTo(5));
             Assert.That(turns.CanAct(ally), Is.True);
             Assert.That(attacker.ActionPoints.CurrentPoints, Is.EqualTo(1));
-            foreach (var foe in enemies) foe.Health.ApplyDamage(TargetBodyPart.Torso, 20);
+            foreach (var foe in enemies) foe.Health.ApplyDamage(TargetBodyPart.Torso, foe.Health.GetCurrentHP(TargetBodyPart.Torso));
             Assert.That(turns.IsBattleOver, Is.True); Assert.That(turns.IsPlayerVictory, Is.True);
             Assert.That(attacker.Health.PilotEjected, Is.True);
         }
         [UnityTest]
         public IEnumerator LosingOneAllyKeepsBattleRunningAndDefeatingAllEnemiesWins()
         {
-            players[0].Health.ApplyDamage(TargetBodyPart.Torso, 20);
+            players[0].Health.ApplyDamage(TargetBodyPart.Torso, players[0].Health.GetCurrentHP(TargetBodyPart.Torso));
             Assert.That(turns.IsBattleOver, Is.False);
-            foreach (var enemy in enemies) enemy.Health.ApplyDamage(TargetBodyPart.Torso, 20);
+            foreach (var enemy in enemies) enemy.Health.ApplyDamage(TargetBodyPart.Torso, enemy.Health.GetCurrentHP(TargetBodyPart.Torso));
             Assert.That(turns.IsBattleOver, Is.True);
             Assert.That(turns.IsPlayerVictory, Is.True);
             Assert.That(turns.TryEndTurn(), Is.False);

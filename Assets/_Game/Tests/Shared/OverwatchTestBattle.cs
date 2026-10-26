@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -29,7 +30,7 @@ namespace MechaXCOM.Tests
             Turns = Root.AddComponent<TurnManager>(); Turns.Initialize(units);
             var visibility = Root.AddComponent<VisibilitySystem>(); visibility.Initialize(Grid, units);
             Turns.ConfigureVisibility(visibility);
-            Combat = Root.AddComponent<CombatSystem>(); Combat.Initialize(Grid, Root.AddComponent<CoverSystem>(), Turns);
+            Combat = Root.AddTestCombatSystem(); Combat.Initialize(Grid, Root.AddComponent<CoverSystem>(), Turns);
             Combat.SetRollSource(() => 0);
             Overwatch = Root.AddComponent<OverwatchSystem>(); Overwatch.Initialize(Grid, Combat, Turns, units);
         }
@@ -44,6 +45,17 @@ namespace MechaXCOM.Tests
             Assert.That(Overwatch.TryBegin(watcher ? watcher : Watcher, WeaponSlot.RightHand, facing), Is.True);
         public void StartTeam(UnitTeam team) => typeof(TurnManager).GetMethod("StartTeamTurn", BindingFlags.NonPublic | BindingFlags.Instance)
             .Invoke(Turns, new object[] { team });
+        public OverwatchDecisionTestReceiver AttachDecisionReceiver()
+        {
+            var receiver = new OverwatchDecisionTestReceiver();
+            Overwatch.ConfigureDecisionReceiver(receiver); return receiver;
+        }
+        public IEnumerator WaitForDecision(float timeoutSeconds = 3f)
+        {
+            float deadline = Time.realtimeSinceStartup + timeoutSeconds;
+            while (!Overwatch.PendingDecision.HasValue && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(Overwatch.PendingDecision.HasValue, Is.True, "An eligible cell must offer a decision.");
+        }
         public bool Resolving
         {
             get

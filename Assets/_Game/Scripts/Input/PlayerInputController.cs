@@ -4,14 +4,27 @@ using UnityEngine.InputSystem;
 
 namespace MechaXCOM
 {
-    public enum UnitActionMode { Menu, Move, Attack, Facing, OverwatchWeapon, OverwatchFacing }
+    public enum UnitActionMode { Menu, Move, Attack, Facing, OverwatchWeapon, OverwatchFacing, ReloadWeapon }
     public class PlayerInputController : MonoBehaviour
     {
+        private OverwatchDecisionController overwatchDecision;
+        private float lastOverwatchDecisionClickTime = float.NegativeInfinity;
+        private Vector2 lastOverwatchDecisionClickPosition;
+        public bool HasPendingOverwatchDecision => overwatchDecision && overwatchDecision.IsPending;
+        internal bool IsReadyForOverwatch(OverwatchDecisionController controller) => isActiveAndEnabled &&
+            overwatchDecision == controller && battleCamera && grid && visualizer && debugUI &&
+            combat && combat.isActiveAndEnabled && turns && turns.isActiveAndEnabled;
+        public void ConfigureOverwatchDecision(OverwatchDecisionController controller)
+        {
+            if (overwatchDecision && overwatchDecision != controller) overwatchDecision.Suspend();
+            overwatchDecision = controller;
+        }
         public WeaponSlot? SelectedWeaponSlot { get; private set; }
         public bool IsWeaponMenuOpen { get; private set; }
         public bool CanBeginWeaponAttack(WeaponSlot slot) => CanChooseAction && combat && combat.isActiveAndEnabled &&
             selected.Combat && selected.Combat.isActiveAndEnabled && selected.ActionPoints && selected.ActionPoints.isActiveAndEnabled &&
             selected.Combat.TryGetAttack(slot, out var stats, out _) && stats.Range > 0 && stats.MinDamage > 0 &&
+            (!stats.Weapon.UsesAmmo || (selected.Ammo && selected.Ammo.CanFire(slot))) &&
             selected.ActionPoints.CanSpend(stats.APCost);
         public bool BeginWeaponAttack(WeaponSlot slot)
         {
@@ -35,6 +48,34 @@ namespace MechaXCOM
             return result;
         }
         private void ClearWeaponSelection() { SelectedWeaponSlot = null; IsWeaponMenuOpen = false; ClearOverwatchSelection(); }
+        public bool IsReloadWeaponMenuOpen => ActionMode == UnitActionMode.ReloadWeapon;
+        public IReadOnlyList<WeaponSlot> GetReloadWeaponSlots() => GetAvailableWeaponSlots(AttackType.Ranged);
+        public bool CanReloadWeapon(WeaponSlot slot) => CanChooseAction && combat &&
+            combat.CanReloadWithWeapon(selected, slot, out _);
+        public bool CanOpenReloadMenu
+        {
+            get
+            {
+                if (!CanChooseAction) return false;
+                foreach (var slot in GetReloadWeaponSlots()) if (CanReloadWeapon(slot)) return true;
+                return false;
+            }
+        }
+        public bool OpenReloadMenu()
+        {
+            if (!CanOpenReloadMenu) return false;
+            ClearWeaponSelection(); IsAttackMenuOpen = false;
+            ActionMode = UnitActionMode.ReloadWeapon; target = null;
+            LastAttackResult = default; InputMessage = null;
+            ResetClickSequence(); RefreshRange(); return true;
+        }
+        public bool TryReloadSelected(WeaponSlot slot)
+        {
+            if (!IsReloadWeaponMenuOpen || !CanReloadWeapon(slot) || !combat.TryReloadWithWeapon(selected, slot)) return false;
+            ClearWeaponSelection(); ActionMode = UnitActionMode.Menu; target = null;
+            LastAttackResult = default; InputMessage = "Reloaded / 재장전 완료";
+            ResetClickSequence(); RefreshRange(); return true;
+        }
         public WeaponSlot? SelectedOverwatchSlot { get; private set; }
         public FacingDirection SelectedOverwatchFacing { get; private set; }
         private WeaponData preparedOverwatchWeapon;
@@ -111,6 +152,12 @@ namespace MechaXCOM
         public AttackPreview CurrentAttackPreview => combat && SelectedWeaponSlot.HasValue
             ? combat.GetWeaponPreview(selected, TargetUnit, SelectedWeaponSlot.Value, SelectedBodyPart) : default;
         public AttackResult LastAttackResult { get; private set; }
+        internal void RecordAttackResult(AttackResult result)
+        {
+            if (!result.WasExecuted) return;
+            LastAttackResult = result;
+            InputMessage = null;
+        }
         public string InputMessage { get; private set; }
         public UnitActionMode ActionMode { get; private set; } = UnitActionMode.Menu;
         public bool IsAttackMenuOpen { get; private set; }
@@ -180,9 +227,34 @@ namespace MechaXCOM
             if (!battleCamera || !grid || !visualizer || !debugUI)
                 Debug.LogWarning($"{name}: input requires Camera, GridManager, GridVisualizer and BattleDebugUI.", this);
         }
+        private void HandleOverwatchDecisionClick(Vector2 point)
+        {
+            // A double-click belongs to the dialog it started on, even if the next
+            // watcher is already displayed when its second press arrives.
+            if (Time.unscaledTime - lastOverwatchDecisionClickTime <= doubleClickInterval &&
+                (point - lastOverwatchDecisionClickPosition).sqrMagnitude <= 100f) return;
+            var decision = overwatchDecision.CurrentDecision;
+            if (!decision.HasValue) return;
+            bodyTargetUI.HandleScreenClick(point);
+            var remaining = Overwatch ? Overwatch.PendingDecision : null;
+            if (!remaining.HasValue || remaining.Value.Id != decision.Value.Id)
+            {
+                lastOverwatchDecisionClickTime = Time.unscaledTime;
+                lastOverwatchDecisionClickPosition = point;
+            }
+        }
         private void Update()
         {
             if (!battleCamera || !grid || !visualizer || !debugUI) return;
+            if (overwatchDecision && overwatchDecision.IsPending)
+            {
+                ResetClickSequence(); visualizer.ClearReachableCells();
+                if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame && bodyTargetUI)
+                    HandleOverwatchDecisionClick(Mouse.current.position.ReadValue());
+                return;
+            }
+            // Keep ordinary selection/ESC handling out of the gap between two watchers too.
+            if (Overwatch && Overwatch.IsResolving) { ResetClickSequence(); return; }
             var pending = turns ? turns.PendingFacingUnit : selected && selected.HasPendingFacing ? selected : null;
             if (pending && (selected != pending || ActionMode != UnitActionMode.Facing))
             {
@@ -232,6 +304,8 @@ namespace MechaXCOM
             wasMoving = moving;
             if (IsAttackMenuOpen && !CanOpenAttackMenu) IsAttackMenuOpen = false;
             if (IsWeaponMenuOpen && !CanOpenAttackMenu) ClearWeaponSelection();
+            if (IsReloadWeaponMenuOpen && !CanOpenReloadMenu)
+            { ActionMode = UnitActionMode.Menu; ClearWeaponSelection(); ResetClickSequence(); }
             if ((ActionMode == UnitActionMode.OverwatchWeapon && !CanOpenOverwatchMenu) ||
                 (ActionMode == UnitActionMode.OverwatchFacing && !CanConfirmOverwatch))
             {
@@ -399,7 +473,7 @@ namespace MechaXCOM
             var result = combat.TryAttackWithWeapon(selected, target, SelectedWeaponSlot.Value, SelectedBodyPart);
             if (result.WasExecuted)
             {
-                LastAttackResult = result; InputMessage = null;
+                RecordAttackResult(result);
                 ActionMode = UnitActionMode.Menu;
                 target = null; ResetClickSequence();
                 if (selected) RefreshRange();
@@ -450,6 +524,7 @@ namespace MechaXCOM
         }
         private void OnDisable()
         {
+            if (overwatchDecision) overwatchDecision.Suspend();
             UnsubscribeVisibility();
             if (visualizer && debugUI) ClearSelection();
         }
@@ -468,6 +543,7 @@ namespace MechaXCOM
         }
         private void OnEnable()
         {
+            if (overwatchDecision) overwatchDecision.RefreshRegistration();
             if (visibility) visibility.Changed += HandleVisibilityChanged;
             HandleVisibilityChanged();
         }

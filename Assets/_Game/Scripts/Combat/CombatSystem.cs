@@ -14,6 +14,9 @@ namespace MechaXCOM
         private Func<int> rollSource = () => UnityEngine.Random.Range(0, 100);
         private Func<int, int, int> damageRollSource = RollDamage;
         public void SetDamageRollSource(Func<int, int, int> source) => damageRollSource = source ?? RollDamage;
+        private static float RollCritical() => UnityEngine.Random.Range(0, 10000) / 100f;
+        private Func<float> criticalRollSource = RollCritical;
+        public void SetCriticalRollSource(Func<float> source) => criticalRollSource = source ?? RollCritical;
         // Both bounds are inclusive without overflowing when maximum == int.MaxValue.
         private static int RollDamage(int minimum, int maximum) => UnityEngine.Random.Range(minimum - 1, maximum) + 1;
         public void Initialize(GridManager grid, CoverSystem cover, TurnManager turns)
@@ -38,6 +41,7 @@ namespace MechaXCOM
             if (!isActiveAndEnabled || !grid || !turns || !attacker || !turns.CanAct(attacker) ||
                 !attacker.Combat || !attacker.Combat.isActiveAndEnabled || !attacker.ActionPoints ||
                 !attacker.Combat.TryGetAttack(slot, out var config, out _) || config.MinDamage <= 0 || config.Range <= 0 ||
+                (config.Weapon.UsesAmmo && (!attacker.Ammo || !attacker.Ammo.CanFire(slot))) ||
                 !attacker.ActionPoints.isActiveAndEnabled || !attacker.ActionPoints.CanSpend(config.APCost) ||
                 !grid.TryGetCell(attacker.CurrentGridPosition, out var source) || source.OccupyingUnit != attacker) return result;
             foreach (var cell in grid.GetCells())
@@ -59,8 +63,9 @@ namespace MechaXCOM
         private AttackPreview BuildWeaponPreview(BattleUnit attacker, BattleUnit target, WeaponSlot slot,
             TargetBodyPart part, bool reaction)
         {
-            var preview = new AttackPreview { WeaponSlot = slot, ReactionMultiplier = reaction ? OverwatchSystem.ReactionHitMultiplier : 1f };
-            if (reaction && (!overwatch || !overwatch.CanResolveShot(attacker, target, slot)))
+            var preview = new AttackPreview { WeaponSlot = slot, ArmorMultiplier = 1f,
+                ReactionMultiplier = reaction ? OverwatchSystem.ReactionHitMultiplier : 1f };
+            if (reaction && (!overwatch || !overwatch.CanPreviewDecision(attacker, target, slot)))
                 return Invalid(preview, "No authorized overwatch reaction.");
             if (!attacker || !attacker.Combat || !attacker.Combat.isActiveAndEnabled)
                 return Invalid(preview, "Attacker components are unavailable.");
@@ -99,12 +104,24 @@ namespace MechaXCOM
             preview.HeadMultiplier = attacker.HeadHitMultiplier;
             preview.GripMultiplier = config.GripMultiplier;
             preview.DistanceMultiplier = type == AttackType.Ranged && config.Weapon ? config.Weapon.GetDistanceHitMultiplier(distance) : 1f;
+            preview.MechaMultiplier = CombatMath.CalculateMechaHitMultiplier(attacker.MechaAccuracy, target.MechaEvasion);
             preview.HitChance = CombatMath.CalculateAttackHitChance(config.BaseHitChance,
                 preview.PartMultiplier, preview.CoverMultiplier, preview.HeadMultiplier, preview.GripMultiplier,
-                preview.DistanceMultiplier, preview.ReactionMultiplier);
+                preview.DistanceMultiplier, preview.ReactionMultiplier, preview.MechaMultiplier);
             preview.MinDamage = config.MinDamage;
             preview.MaxDamage = config.MaxDamage;
+            preview.CriticalChance = CombatMath.CalculateCriticalChance(attacker.PilotTechnique, target.PilotTechnique);
+            preview.CriticalDamageMultiplier = CombatMath.BaseCriticalDamageMultiplier;
+            preview.TargetArmorType = target.ArmorType;
+            preview.ArmorMultiplier = CombatMath.CalculateArmorMultiplier(target.ArmorType, type, config.Weapon.RangedCategory);
             preview.APCost = reaction ? 0 : config.APCost;
+            preview.UsesAmmo = config.Weapon.UsesAmmo;
+            preview.UsesEnergyPack = preview.UsesAmmo && config.Weapon.RangedCategory == RangedWeaponCategory.Beam;
+            if (preview.UsesAmmo && attacker.Ammo)
+            {
+                var ammo = attacker.Ammo.GetStatus(slot);
+                preview.AmmoLoaded = ammo.Loaded; preview.MagazineCapacity = ammo.Capacity; preview.SpareMagazines = ammo.SpareMagazines;
+            }
             if (!reaction && !turns.CanAct(attacker)) return Invalid(preview, "Cannot attack outside this team's turn, while moving or after battle ends.");
             if (!CombatMath.IsInRange(attacker.CurrentGridPosition, target.CurrentGridPosition, config.Range))
                 return Invalid(preview, "Target is out of range.");
@@ -118,6 +135,8 @@ namespace MechaXCOM
             if (!reaction && !attacker.ActionPoints.CanSpend(config.APCost)) return Invalid(preview, "Not enough AP.");
             if (!reaction && (!turns.Visibility || !turns.Visibility.IsVisibleTo(attacker.Team, target)))
                 return Invalid(preview, "Target is not detected.");
+            if (preview.UsesAmmo && (!attacker.Ammo || !attacker.Ammo.CanFire(slot)))
+                return Invalid(preview, "Out of ammo. Reload this weapon.");
             preview.CanAttack = true;
             return preview;
         }
@@ -136,25 +155,59 @@ namespace MechaXCOM
             if (!preview.CanAttack) return new AttackResult { FailureReason = preview.FailureReason };
             if (!attacker.ActionPoints.TrySpend(preview.APCost))
                 return new AttackResult { FailureReason = "Not enough AP." };
+            // No callbacks occur between the preview, AP payment and ammo payment.
+            if (preview.UsesAmmo && !attacker.Ammo.TryConsumeShot(slot))
+                return new AttackResult { FailureReason = "Weapon ammo is unavailable." };
             return ExecuteAttack(target, preview);
         }
-        internal AttackResult TryOverwatchAttack(BattleUnit attacker, BattleUnit target, WeaponSlot slot)
+        public bool CanReloadWithWeapon(BattleUnit unit, WeaponSlot slot, out string reason)
         {
-            var preview = BuildWeaponPreview(attacker, target, slot, TargetBodyPart.Torso, true);
+            reason = null;
+            if (!isActiveAndEnabled || !grid || !turns || !unit || !unit.isActiveAndEnabled || !unit.IsAlive ||
+                !unit.Health.isActiveAndEnabled || !unit.Combat || !unit.Combat.isActiveAndEnabled ||
+                !unit.ActionPoints || !unit.ActionPoints.isActiveAndEnabled || !unit.Ammo || !unit.Ammo.isActiveAndEnabled ||
+                !turns.CanAct(unit) || !grid.TryGetCell(unit.CurrentGridPosition, out var cell) || cell.OccupyingUnit != unit)
+                reason = "Cannot reload while this unit cannot act.";
+            else if (!unit.Combat.TryGetAttack(slot, out _, out reason)) { }
+            else if (!unit.Ammo.CanReload(slot)) reason = "Reload requires a partially empty magazine and a spare.";
+            else if (!unit.ActionPoints.CanSpend(unit.Ammo.GetStatus(slot).ReloadAPCost)) reason = "Not enough AP to reload.";
+            return reason == null;
+        }
+        public bool TryReloadWithWeapon(BattleUnit unit, WeaponSlot slot)
+        {
+            if (!CanReloadWithWeapon(unit, slot, out _)) return false;
+            int cost = unit.Ammo.GetStatus(slot).ReloadAPCost;
+            if (!unit.ActionPoints.TrySpend(cost)) return false;
+            return unit.Ammo.TryReload(slot);
+        }
+        internal AttackPreview GetOverwatchPreview(BattleUnit attacker, BattleUnit target, WeaponSlot slot, TargetBodyPart part)
+            => BuildWeaponPreview(attacker, target, slot, part, true);
+        internal AttackResult TryOverwatchAttack(BattleUnit attacker, BattleUnit target, WeaponSlot slot, TargetBodyPart part)
+        {
+            if (!overwatch || !overwatch.CanResolveShot(attacker, target, slot, part))
+                return new AttackResult { FailureReason = "No authorized overwatch fire decision." };
+            var preview = GetOverwatchPreview(attacker, target, slot, part);
             if (!preview.CanAttack) return new AttackResult { FailureReason = preview.FailureReason };
-            if (!overwatch || !overwatch.CanResolveShot(attacker, target, slot) || !attacker.Overwatch.TryConsume())
+            if (!overwatch.CanResolveShot(attacker, target, slot, part) || !attacker.Overwatch.TryConsumeTarget(target))
                 return new AttackResult { FailureReason = "Overwatch is no longer available." };
+            if (preview.UsesAmmo && !attacker.Ammo.TryConsumeShot(slot))
+                return new AttackResult { FailureReason = "Weapon ammo is unavailable." };
             return ExecuteAttack(target, preview);
         }
         private AttackResult ExecuteAttack(BattleUnit target, AttackPreview preview)
         {
             bool hit = CombatMath.IsHit(preview.HitChance, rollSource());
+            bool critical = hit && preview.CriticalChance > 0f &&
+                CombatMath.IsCritical(preview.CriticalChance, criticalRollSource());
             var damage = hit ? target.Health.ApplyDamage(preview.TargetPart,
-                Mathf.Clamp(damageRollSource(preview.MinDamage, preview.MaxDamage), preview.MinDamage, preview.MaxDamage)) :
+                CombatMath.CalculateAttackDamage(
+                    Mathf.Clamp(damageRollSource(preview.MinDamage, preview.MaxDamage), preview.MinDamage, preview.MaxDamage),
+                    critical, preview.ArmorMultiplier)) :
                 new PartDamageResult { PartHPAfter = preview.PartHP, StateAfter = preview.TargetState };
             return new AttackResult
             {
                 WasExecuted = true, Hit = hit, HitChance = preview.HitChance,
+                IsCritical = critical, CriticalChance = preview.CriticalChance,
                 DamageDealt = damage.DamageDealt, TargetPart = preview.TargetPart,
                 TargetPartHPAfter = damage.PartHPAfter, TargetStateAfter = damage.StateAfter,
                 DestructionChecked = damage.DestructionChecked

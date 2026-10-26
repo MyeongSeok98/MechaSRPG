@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac3af83dfc034742a429ca20fc827fee, type: 3}
+  m_Name: SampleEnemyMecha 1
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.MechaData
+  mechaId: sample_enemy_mecha
+  displayName: Sample Enemy Mecha
+  description: "\uC0D8\uD50C \uC801 \uBA54\uCE74"
+  modelPrefab: {fileID: 1053079044590142513, guid: 6738104dfe3d7e54eade95f1c312405e, type: 3}
+  armorType: 2
+  baseAP: 5
+  accuracy: 5
+  evasion: 5
+  movementCellsPerAP: 1
+  bodyMaxHP: 2600
+  cockpitMaxHP: 700
+  headMaxHP: 700
+  leftArmMaxHP: 1000
+  rightArmMaxHP: 1000
+  leftLegMaxHP: 1400
+  rightLegMaxHP: 1400
+  chassisWeightTonnes: 0
+  equipmentWeightLimitTonnes: 0

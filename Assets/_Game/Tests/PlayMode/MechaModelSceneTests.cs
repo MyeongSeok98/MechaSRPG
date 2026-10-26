@@ -29,7 +29,13 @@ namespace MechaXCOM.Tests
                     {
                         var presenter = unit.GetComponent<UnitMechaVisual>();
                         Assert.That(presenter, Is.Not.Null, unit.name);
-                        Assert.That(unit.MechaData.name, Is.EqualTo("SampleMecha"));
+                        string expectedId = unit.Team == UnitTeam.Player ? "sample_mecha" : "sample_enemy_mecha";
+                        Assert.That(unit.MechaData.MechaId, Is.EqualTo(expectedId), unit.name);
+                        Assert.That(unit.ActionPoints.MaxPoints, Is.EqualTo(unit.MechaData.BaseAP));
+                        Assert.That(unit.MechaAccuracy, Is.EqualTo(unit.MechaData.Accuracy));
+                        Assert.That(unit.MechaEvasion, Is.EqualTo(unit.MechaData.Evasion));
+                        for (int part = (int)TargetBodyPart.Torso; part <= (int)TargetBodyPart.RightLeg; part++)
+                            Assert.That(unit.Health.GetMaxHP((TargetBodyPart)part), Is.EqualTo(unit.MechaData.GetMaxHP((TargetBodyPart)part)), unit.name);
                         Assert.That(presenter.ModelInstance, Is.Not.Null);
                         Assert.That(unit.transform.Find("Visual").childCount, Is.EqualTo(1));
                         Assert.That(unit.GetComponent<MeshRenderer>().enabled, Is.False);

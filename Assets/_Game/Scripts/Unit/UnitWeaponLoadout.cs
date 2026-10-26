@@ -16,7 +16,28 @@ namespace MechaXCOM
         public void Configure(WeaponData left, GripMode leftGrip, WeaponData right, GripMode rightGrip)
         {
             leftWeapon = left; this.leftGrip = leftGrip; rightWeapon = right; this.rightGrip = rightGrip;
+            var unit = GetComponent<BattleUnit>();
+            if (unit && unit.IsInitialized) AdjustGripForArmDamage(unit.Health);
             Changed?.Invoke();
+        }
+        internal void ResolveArmDamage(UnitHealth health)
+        {
+            if (AdjustGripForArmDamage(health)) Changed?.Invoke();
+        }
+        private bool AdjustGripForArmDamage(UnitHealth health)
+        {
+            if (!health || !health.IsPresent || (leftWeapon && rightWeapon)) return false;
+            bool leftDestroyed = health.GetCurrentHP(TargetBodyPart.LeftArm) == 0;
+            bool rightDestroyed = health.GetCurrentHP(TargetBodyPart.RightArm) == 0;
+            if (leftDestroyed == rightDestroyed) return false;
+            var weapon = leftWeapon && leftGrip == GripMode.TwoHands ? leftWeapon :
+                rightWeapon && rightGrip == GripMode.TwoHands ? rightWeapon : null;
+            if (!weapon || weapon.GripRequirement != GripRequirement.Either) return false;
+            // Runtime hand transfer only. Shared WeaponData and authored loadouts stay unchanged.
+            leftWeapon = leftDestroyed ? null : weapon;
+            rightWeapon = rightDestroyed ? null : weapon;
+            leftGrip = rightGrip = GripMode.OneHand;
+            return true;
         }
         private void OnValidate() => Changed?.Invoke();
         public bool IsValid(out string reason)

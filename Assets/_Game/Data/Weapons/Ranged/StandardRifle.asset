@@ -17,11 +17,14 @@ MonoBehaviour:
   attackType: 0
   rangedCategory: 0
   meleeCategory: 0
-  minDamage: 4
-  maxDamage: 6
+  minDamage: 700
+  maxDamage: 1000
   baseHitChance: 80
   range: 7
   apCost: 3
+  magazineCapacity: 3
+  spareMagazineCount: 2
+  reloadAPCost: 3
   weightTonnes: 0
   gripRequirement: 2
   twoHandHitMultiplier: 1.1
