@@ -167,6 +167,8 @@ namespace MechaXCOM.Tests
             Assert.That(target.Health.GetCurrentHP(TargetBodyPart.RightLeg),
                 Is.EqualTo(Mathf.Max(0, target.Health.GetMaxHP(TargetBodyPart.RightLeg) - rangedDamage)));
             Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(target.Health.GetMaxHP(TargetBodyPart.Torso)));
+            Assert.That(turns.IsPresentingAttack, Is.True);
+            yield return WaitForFeedback();
             attacker.ActionPoints.ResetForTurn();
             var meleePreview = combat.GetPreview(attacker, target, AttackType.Melee, TargetBodyPart.Head);
             attacker.Combat.TryGetAttack(meleePreview.WeaponSlot, out var meleeStats, out _);
@@ -176,6 +178,8 @@ namespace MechaXCOM.Tests
             Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso),
                 Is.EqualTo(Mathf.Max(0, target.Health.GetMaxHP(TargetBodyPart.Torso) - meleeDamage)));
             Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Head), Is.EqualTo(target.Health.GetMaxHP(TargetBodyPart.Head)));
+            Assert.That(turns.IsPresentingAttack, Is.True);
+            yield return WaitForFeedback();
             foreach (var foe in enemies) MechStateTestRules.MakeCritical(foe);
             MechStateTestRules.MakeCritical(attacker);
             Assert.That(turns.IsBattleOver, Is.False);
@@ -192,6 +196,12 @@ namespace MechaXCOM.Tests
             foreach (var foe in enemies) foe.Health.ApplyDamage(TargetBodyPart.Torso, foe.Health.GetCurrentHP(TargetBodyPart.Torso));
             Assert.That(turns.IsBattleOver, Is.True); Assert.That(turns.IsPlayerVictory, Is.True);
             Assert.That(attacker.Health.PilotEjected, Is.True);
+        }
+        private IEnumerator WaitForFeedback()
+        {
+            float deadline = Time.realtimeSinceStartup + 2;
+            while (turns.IsPresentingAttack && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(turns.IsPresentingAttack, Is.False);
         }
         [UnityTest]
         public IEnumerator LosingOneAllyKeepsBattleRunningAndDefeatingAllEnemiesWins()

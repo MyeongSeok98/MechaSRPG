@@ -15,6 +15,7 @@ namespace MechaXCOM
         private GridManager grid;
         private Transform lines;
         private Transform ranges;
+        private Transform blast;
         private Transform indicator;
         private Transform enemyIndicator;
         private TurnManager turns;
@@ -103,6 +104,7 @@ namespace MechaXCOM
             => ShowRangeCells(cells, overwatchMaterial);
         private void ShowRangeCells(List<GridCell> cells, Material material)
         {
+            ClearBlastCells();
             if (!ranges || !grid) return;
             while (ranges.childCount > 0)
             {
@@ -120,6 +122,22 @@ namespace MechaXCOM
         public void ClearReachableCells()
         {
             if (ranges) ranges.gameObject.SetActive(false);
+            ClearBlastCells();
+        }
+        public void ClearBlastCells() { if (blast) blast.gameObject.SetActive(false); }
+        public void ShowBlastCells(List<GridCell> cells)
+        {
+            if (!grid || !ranges) return;
+            if (!blast) blast = MakeRoot("Blast Preview Cells");
+            while (blast.childCount > 0)
+            {
+                var child = blast.GetChild(0).gameObject; child.transform.SetParent(null); child.SetActive(false);
+                if (Application.isPlaying) Destroy(child); else DestroyImmediate(child);
+            }
+            if (cells != null)
+                foreach (var cell in cells) MakeCube(blast, cell.WorldPosition + Vector3.up * .065f,
+                    new Vector3(grid.CellSize * .92f, .035f, grid.CellSize * .92f), overwatchMaterial);
+            blast.gameObject.SetActive(cells != null && cells.Count > 0);
         }
         public void SetSelectedUnit(BattleUnit unit)
         {

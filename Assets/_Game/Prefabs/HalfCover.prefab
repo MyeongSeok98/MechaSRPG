@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 3123368397177927900}
   - component: {fileID: 3949950351472608485}
   - component: {fileID: 5997682989458251781}
+  - component: {fileID: 850100000000001}
   m_Layer: 0
   m_Name: HalfCover
   m_TagString: Untagged
@@ -126,3 +127,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.CoverObject
   coverType: 0
+--- !u!114 &850100000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3101214337032029667}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c2d51c73919b4f45a78d5fedbc22e7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.CoverDurability
+  maxHP: 1000

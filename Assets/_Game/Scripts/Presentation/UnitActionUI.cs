@@ -23,10 +23,14 @@ namespace MechaXCOM
             if (!input || !input.SelectedUnit || !input.SelectedUnit.Combat.TryGetAttack(slot, out var stats, out _)) return string.Empty;
             var loadout = input.SelectedUnit.GetComponent<UnitWeaponLoadout>();
             var grip = slot == WeaponSlot.LeftHand ? loadout.LeftGrip : loadout.RightGrip;
-            string hand = grip == GripMode.TwoHands ? "Both hands" : slot == WeaponSlot.LeftHand ? "Left" : "Right";
+            string hand = slot == WeaponSlot.Backpack ? "Backpack" :
+                grip == GripMode.TwoHands ? "Both hands" : slot == WeaponSlot.LeftHand ? "Left" : "Right";
             var ammo = input.SelectedUnit.Ammo ? input.SelectedUnit.Ammo.GetStatus(slot) : default;
             string cost = IsReloadWeaponMenu ? $"Reload AP {ammo.ReloadAPCost}" : $"AP {stats.APCost}";
-            return $"{hand}: {stats.DisplayName}\n{(ammo.UsesAmmo ? $"{ammo.Loaded}/{ammo.Capacity} · 예비 {ammo.SpareMagazines} / " : "")}{cost}";
+            string resource = !ammo.UsesAmmo ? string.Empty : slot == WeaponSlot.Backpack
+                ? $"{ammo.Loaded}/{ammo.Capacity} · 재장전 불가 / "
+                : $"{ammo.Loaded}/{ammo.Capacity} · 예비 {ammo.SpareMagazines} / ";
+            return $"{hand}: {stats.DisplayName}{(stats.Weapon.IsIndirect ? " [곡사]" : "")}\n{resource}{cost}";
         }
         public string WeaponInfoText => input ? input.CurrentAttackPreview.WeaponName : string.Empty;
         public string AttackInfoText => input ? AttackPreviewText.HitAndDamage(input.CurrentAttackPreview) : string.Empty;
@@ -83,7 +87,7 @@ namespace MechaXCOM
         {
             rect = default;
             if (!input || (!input.IsAttackMenuOpen && !input.IsWeaponMenuOpen && !IsOverwatchWeaponMenu && !IsReloadWeaponMenu) || !TryGetPanelRect(out var main)) return false;
-            float width = 220 * Scale, gap = 8 * Scale, height = 128 * Scale;
+            float width = 220 * Scale, gap = 8 * Scale, height = (40 + 44 * Mathf.Max(2, WeaponChoices.Count)) * Scale;
             float x = main.xMax + gap;
             if (x + width > Screen.width - gap) x = main.xMin - gap - width;
             rect = new Rect(Mathf.Clamp(x, gap, Screen.width - width - gap),
@@ -146,9 +150,9 @@ namespace MechaXCOM
             var button = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(14 * Scale) };
             var weaponButton = new GUIStyle(button) { fontSize = Mathf.RoundToInt(12 * Scale), wordWrap = true };
             GUI.Box(rect, GUIContent.none);
-            GUI.Label(new Rect(rect.x + 8 * Scale, rect.y + 5 * Scale, rect.width - 16 * Scale, 24 * Scale),
+            ResourceTypography.Label(new Rect(rect.x + 8 * Scale, rect.y + 5 * Scale, rect.width - 16 * Scale, 24 * Scale),
                 $"{input.SelectedUnit.name} / AP {input.SelectedUnit.ActionPoints.CurrentPoints}", title);
-            GUI.Label(new Rect(rect.x + 8 * Scale, rect.y + 27 * Scale, rect.width - 16 * Scale, 20 * Scale),
+            ResourceTypography.Label(new Rect(rect.x + 8 * Scale, rect.y + 27 * Scale, rect.width - 16 * Scale, 20 * Scale),
                 UnitStateText, text);
             bool oldEnabled = GUI.enabled;
             if (IsDirectionMenu)
@@ -157,8 +161,8 @@ namespace MechaXCOM
                 string[] names = { "North (+Z)", "East (+X)", "South (-Z)", "West (-X)" };
                 var selectedFacing = IsOverwatchFacing ? input.SelectedOverwatchFacing : input.SelectedFacing;
                 for (int i = 0; i < 4; i++)
-                    GUI.Button(GetFacingButtonRect((FacingDirection)i), names[i] + (selectedFacing == (FacingDirection)i ? " [selected]" : ""), button);
-                GUI.Button(ConfirmFacingButtonRect, IsOverwatchFacing ? "Confirm / AP 2" :
+                    ResourceTypography.Button(GetFacingButtonRect((FacingDirection)i), names[i] + (selectedFacing == (FacingDirection)i ? " [selected]" : ""), button);
+                ResourceTypography.Button(ConfirmFacingButtonRect, IsOverwatchFacing ? "Confirm / AP 2" :
                     input.SelectedUnit.IsConfirmingFacing ? "Turning..." : "Confirm / AP 0", button);
                 GUI.enabled = oldEnabled;
                 GUI.depth = oldDepth;
@@ -167,44 +171,45 @@ namespace MechaXCOM
             // Input System clicks are handled once by PlayerInputController before map raycasts.
             // IMGUI draws the controls here; its legacy-input return values are intentionally unused.
             GUI.enabled = oldEnabled && input.CanBeginMove;
-            GUI.Button(MoveButtonRect, input.ActionMode == UnitActionMode.Move ? "Move [selected]" : "Move", button);
+            ResourceTypography.Button(MoveButtonRect, input.ActionMode == UnitActionMode.Move ? "Move [selected]" : "Move", button);
             GUI.enabled = oldEnabled && input.CanOpenAttackMenu;
-            GUI.Button(AttackButtonRect, input.IsAttackMenuOpen ? "Attack [selected]" : "Attack", button);
+            ResourceTypography.Button(AttackButtonRect, input.IsAttackMenuOpen ? "Attack [selected]" : "Attack", button);
             GUI.enabled = oldEnabled && input.CanEjectSelected;
-            GUI.Button(EjectButtonRect, "Eject / AP 1", button);
+            ResourceTypography.Button(EjectButtonRect, "Eject / AP 1", button);
             if (input.ActionMode != UnitActionMode.Attack)
             {
                 GUI.enabled = oldEnabled && input.CanOpenOverwatchMenu;
-                GUI.Button(OverwatchButtonRect, input.SelectedUnit.Overwatch && input.SelectedUnit.Overwatch.IsActive
+                ResourceTypography.Button(OverwatchButtonRect, input.SelectedUnit.Overwatch && input.SelectedUnit.Overwatch.IsActive
                     ? "Overwatch [active]" : "Overwatch / AP 2", button);
                 GUI.enabled = oldEnabled && input.CanOpenReloadMenu;
-                GUI.Button(ReloadButtonRect, IsReloadWeaponMenu ? "Reload [selected]" : "Reload", button);
+                ResourceTypography.Button(ReloadButtonRect, IsReloadWeaponMenu ? "Reload [selected]" : "Reload", button);
             }
             GUI.enabled = oldEnabled;
             if (TryGetAttackMenuRect(out var choices))
             {
                 GUI.Box(choices, GUIContent.none);
-                GUI.Label(new Rect(choices.x + 8 * Scale, choices.y + 5 * Scale, choices.width - 16 * Scale, 24 * Scale),
+                ResourceTypography.Label(new Rect(choices.x + 8 * Scale, choices.y + 5 * Scale, choices.width - 16 * Scale, 24 * Scale),
                     IsReloadWeaponMenu ? "Reload weapon" : IsOverwatchWeaponMenu ? "Overwatch weapon" : "Choose weapon", title);
                 foreach (var slot in WeaponChoices)
                 {
                     GUI.enabled = oldEnabled && (IsReloadWeaponMenu ? input.CanReloadWeapon(slot) : IsOverwatchWeaponMenu ? input.CanBeginOverwatch(slot) : input.CanBeginWeaponAttack(slot));
-                    GUI.Button(GetWeaponButtonRect(slot), GetWeaponButtonText(slot), weaponButton);
+                    ResourceTypography.Button(GetWeaponButtonRect(slot), GetWeaponButtonText(slot), weaponButton);
                 }
                 GUI.enabled = oldEnabled;
             }
             if (input.ActionMode == UnitActionMode.Attack && input.TargetUnit)
             {
                 var preview = input.CurrentAttackPreview;
-                GUI.Label(Row(3), $"Target: {input.TargetUnit.name}", text);
-                GUI.Label(Row(4), WeaponInfoText, text);
-                GUI.Label(Row(5), AttackInfoText, text);
-                GUI.Label(Row(6), preview.CanAttack ? $"Cost: {preview.APCost} AP" : preview.FailureReason, text);
+                ResourceTypography.Label(Row(3), $"Target: {input.TargetUnit.name}", text);
+                ResourceTypography.Label(Row(4), WeaponInfoText, text);
+                ResourceTypography.Label(Row(5), AttackInfoText, text);
+                ResourceTypography.Label(Row(6), preview.CanAttack ? $"Cost: {preview.APCost} AP" : preview.FailureReason, text);
                 GUI.enabled = oldEnabled && preview.CanAttack;
-                GUI.Button(FireButtonRect, input.SelectedAttackType == AttackType.Melee ? "Strike" : "Fire", button);
+                ResourceTypography.Button(FireButtonRect, input.SelectedAttackType == AttackType.Melee ? "Strike" : "Fire", button);
                 GUI.enabled = oldEnabled;
             }
             GUI.depth = oldDepth;
         }
     }
 }
+

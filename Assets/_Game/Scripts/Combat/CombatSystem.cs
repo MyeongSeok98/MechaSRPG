@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MechaXCOM
 {
-    public class CombatSystem : MonoBehaviour
+    public partial class CombatSystem : MonoBehaviour
     {
         private GridManager grid;
         private CoverSystem cover;
@@ -13,6 +13,16 @@ namespace MechaXCOM
         public void ConfigureOverwatch(OverwatchSystem system) => overwatch = system;
         private Func<int> rollSource = () => UnityEngine.Random.Range(0, 100);
         private Func<int, int, int> damageRollSource = RollDamage;
+        private Func<int, int> additionalPartIndexRollSource = maximum => UnityEngine.Random.Range(0, maximum);
+        // Optional legacy test hook. Its return is snapped to the authored discrete levels.
+        private Func<float, float, float> additionalDamageRatioRollSource;
+        private Func<int, int> additionalDamageStepRollSource = count => UnityEngine.Random.Range(0, count);
+        public void SetAdditionalPartIndexRollSource(Func<int, int> source) =>
+            additionalPartIndexRollSource = source ?? (maximum => UnityEngine.Random.Range(0, maximum));
+        public void SetAdditionalDamageRatioRollSource(Func<float, float, float> source) =>
+            additionalDamageRatioRollSource = source;
+        public void SetAdditionalDamageStepRollSource(Func<int, int> source) =>
+            additionalDamageStepRollSource = source ?? (count => UnityEngine.Random.Range(0, count));
         public void SetDamageRollSource(Func<int, int, int> source) => damageRollSource = source ?? RollDamage;
         private static float RollCritical() => UnityEngine.Random.Range(0, 10000) / 100f;
         private Func<float> criticalRollSource = RollCritical;
@@ -20,7 +30,11 @@ namespace MechaXCOM
         // Both bounds are inclusive without overflowing when maximum == int.MaxValue.
         private static int RollDamage(int minimum, int maximum) => UnityEngine.Random.Range(minimum - 1, maximum) + 1;
         public void Initialize(GridManager grid, CoverSystem cover, TurnManager turns)
-        { this.grid = grid; this.cover = cover; this.turns = turns; }
+        {
+            if (this.cover) this.cover.Changed -= HandleTerrainChanged;
+            this.grid = grid; this.cover = cover; this.turns = turns;
+            if (cover) cover.Changed += HandleTerrainChanged;
+        }
         public void SetRollSource(Func<int> rollSource) =>
             this.rollSource = rollSource ?? (() => UnityEngine.Random.Range(0, 100));
         public List<GridCell> GetAttackRangeCells(BattleUnit attacker, AttackType type = AttackType.Ranged)
@@ -45,10 +59,12 @@ namespace MechaXCOM
                 !attacker.ActionPoints.isActiveAndEnabled || !attacker.ActionPoints.CanSpend(config.APCost) ||
                 !grid.TryGetCell(attacker.CurrentGridPosition, out var source) || source.OccupyingUnit != attacker) return result;
             foreach (var cell in grid.GetCells())
-                if (cell != source && (!cell.Occupied || cell.OccupyingUnit.Team != attacker.Team) &&
+                if (config.Weapon.IsIndirect ? CanAimIndirectAt(source.Position, cell.Position, config.Weapon, out _) :
+                    cell != source && (!cell.Occupied || cell.OccupyingUnit.Team != attacker.Team) &&
                     CombatMath.IsInRange(source.Position, cell.Position, config.Range) &&
                     (config.Type == AttackType.Melee ? grid.HasMeleeReach(source.Position, cell.Position, config.Range)
                         : grid.HasClearShot(source.Position, cell.Position))) result.Add(cell);
+            AddCoverRangeCells(attacker, slot, config, result);
             return result;
         }
         public AttackPreview GetPreview(BattleUnit attacker, BattleUnit target, AttackType type = AttackType.Ranged,
@@ -73,6 +89,7 @@ namespace MechaXCOM
             var type = config.Type;
             preview.Type = type;
             preview.WeaponName = config.DisplayName;
+            if (config.Weapon.IsIndirect) return Invalid(preview, "곡사무기는 맵 좌표를 선택해 발사하세요.");
             preview.TargetPart = type == AttackType.Melee ? TargetBodyPart.Torso : BodyTargetRules.Normalize(part);
             if (preview.TargetPart < TargetBodyPart.Torso || preview.TargetPart > TargetBodyPart.RightLeg)
                 return Invalid(preview, "Invalid target part.");
@@ -105,15 +122,25 @@ namespace MechaXCOM
             preview.GripMultiplier = config.GripMultiplier;
             preview.DistanceMultiplier = type == AttackType.Ranged && config.Weapon ? config.Weapon.GetDistanceHitMultiplier(distance) : 1f;
             preview.MechaMultiplier = CombatMath.CalculateMechaHitMultiplier(attacker.MechaAccuracy, target.MechaEvasion);
+            preview.PilotHitMultiplier = CombatMath.CalculatePilotHitMultiplier(type,
+                type == AttackType.Melee ? attacker.PilotMelee : attacker.PilotShooting, target.PilotEvasion);
+            preview.PilotDamageMultiplier = CombatMath.CalculatePilotDamageMultiplier(type, attacker.PilotMelee);
             preview.HitChance = CombatMath.CalculateAttackHitChance(config.BaseHitChance,
                 preview.PartMultiplier, preview.CoverMultiplier, preview.HeadMultiplier, preview.GripMultiplier,
-                preview.DistanceMultiplier, preview.ReactionMultiplier, preview.MechaMultiplier);
+                preview.DistanceMultiplier, preview.ReactionMultiplier, preview.MechaMultiplier, preview.PilotHitMultiplier);
             preview.MinDamage = config.MinDamage;
             preview.MaxDamage = config.MaxDamage;
+            if (config.Weapon.HasAdditionalPartDamage)
+            {
+                preview.AdditionalHitPartCount = config.Weapon.AdditionalHitPartCount;
+                preview.AdditionalDamageMinRatio = config.Weapon.AdditionalDamageMinRatio;
+                preview.AdditionalDamageMaxRatio = config.Weapon.AdditionalDamageMaxRatio;
+                preview.AdditionalDamageStepPercent = config.Weapon.AdditionalDamageStepPercent;
+            }
             preview.CriticalChance = CombatMath.CalculateCriticalChance(attacker.PilotTechnique, target.PilotTechnique);
             preview.CriticalDamageMultiplier = CombatMath.BaseCriticalDamageMultiplier;
             preview.TargetArmorType = target.ArmorType;
-            preview.ArmorMultiplier = CombatMath.CalculateArmorMultiplier(target.ArmorType, type, config.Weapon.RangedCategory);
+            preview.ArmorMultiplier = target.GetDamageTakenMultiplier(type, config.Weapon.RangedCategory);
             preview.APCost = reaction ? 0 : config.APCost;
             preview.UsesAmmo = config.Weapon.UsesAmmo;
             preview.UsesEnergyPack = preview.UsesAmmo && config.Weapon.RangedCategory == RangedWeaponCategory.Beam;
@@ -194,24 +221,69 @@ namespace MechaXCOM
                 return new AttackResult { FailureReason = "Weapon ammo is unavailable." };
             return ExecuteAttack(target, preview);
         }
-        private AttackResult ExecuteAttack(BattleUnit target, AttackPreview preview)
+        private AttackResult ResolveAttack(BattleUnit target, AttackPreview preview)
         {
             bool hit = CombatMath.IsHit(preview.HitChance, rollSource());
             bool critical = hit && preview.CriticalChance > 0f &&
                 CombatMath.IsCritical(preview.CriticalChance, criticalRollSource());
-            var damage = hit ? target.Health.ApplyDamage(preview.TargetPart,
-                CombatMath.CalculateAttackDamage(
+            var damage = new PartDamageResult { PartHPAfter = preview.PartHP, StateAfter = preview.TargetState };
+            PartDamageResult[] additional = null;
+            if (hit)
+            {
+                int directDamage = CombatMath.CalculateModifiedAttackDamage(
                     Mathf.Clamp(damageRollSource(preview.MinDamage, preview.MaxDamage), preview.MinDamage, preview.MaxDamage),
-                    critical, preview.ArmorMultiplier)) :
-                new PartDamageResult { PartHPAfter = preview.PartHP, StateAfter = preview.TargetState };
+                    critical, preview.ArmorMultiplier, preview.PilotDamageMultiplier);
+                if (preview.AdditionalHitPartCount > 0)
+                {
+                    var hits = new List<PartDamage> { new PartDamage(preview.TargetPart, directDamage) };
+                    var candidates = new List<TargetBodyPart>();
+                    for (int i = (int)TargetBodyPart.Torso; i <= (int)TargetBodyPart.RightLeg; i++)
+                    {
+                        var part = (TargetBodyPart)i;
+                        if (part != preview.TargetPart && part != TargetBodyPart.Cockpit && target.Health.GetCurrentHP(part) > 0)
+                            candidates.Add(part);
+                    }
+                    int count = Math.Min(preview.AdditionalHitPartCount, candidates.Count);
+                    for (int i = 0; i < count; i++)
+                    {
+                        int index = Mathf.Clamp(additionalPartIndexRollSource(candidates.Count), 0, candidates.Count - 1);
+                        var part = candidates[index]; candidates.RemoveAt(index);
+                        int percent = RollAdditionalDamagePercent(preview);
+                        int extraDamage = (int)Math.Min(int.MaxValue, Math.Floor(directDamage * (decimal)percent / 100m + .5m));
+                        hits.Add(new PartDamage(part, extraDamage));
+                    }
+                    var results = target.Health.ApplyDamageBatch(hits);
+                    damage = results[0]; additional = new PartDamageResult[results.Length - 1];
+                    Array.Copy(results, 1, additional, 0, additional.Length);
+                }
+                else damage = target.Health.ApplyDamage(preview.TargetPart, directDamage);
+            }
             return new AttackResult
             {
                 WasExecuted = true, Hit = hit, HitChance = preview.HitChance,
                 IsCritical = critical, CriticalChance = preview.CriticalChance,
                 DamageDealt = damage.DamageDealt, TargetPart = preview.TargetPart,
                 TargetPartHPAfter = damage.PartHPAfter, TargetStateAfter = damage.StateAfter,
-                DestructionChecked = damage.DestructionChecked
+                DestructionChecked = damage.DestructionChecked, AdditionalPartDamage = additional
             };
+        }
+        private int RollAdditionalDamagePercent(AttackPreview preview)
+        {
+            int step = preview.AdditionalDamageStepPercent;
+            int first = Mathf.RoundToInt(preview.AdditionalDamageMinRatio * 100f / step);
+            int last = Mathf.RoundToInt(preview.AdditionalDamageMaxRatio * 100f / step);
+            int levels = last - first + 1;
+            int index;
+            if (additionalDamageRatioRollSource != null)
+            {
+                float ratio = additionalDamageRatioRollSource(preview.AdditionalDamageMinRatio, preview.AdditionalDamageMaxRatio);
+                ratio = float.IsNaN(ratio) ? preview.AdditionalDamageMinRatio :
+                    Mathf.Clamp(ratio, preview.AdditionalDamageMinRatio, preview.AdditionalDamageMaxRatio);
+                index = Mathf.RoundToInt(ratio * 100f / step) - first;
+            }
+            else index = additionalDamageStepRollSource(levels);
+            // Each integer index is equally likely in normal play, including both ends.
+            return (first + Mathf.Clamp(index, 0, levels - 1)) * step;
         }
     }
 }

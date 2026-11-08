@@ -8,6 +8,20 @@ namespace MechaXCOM
     {
         private BattleUnit[] units = Array.Empty<BattleUnit>();
         private bool initialized;
+        private int damageResolutionDepth;
+        private UnityEngine.Object feedbackOwner;
+        private float feedbackUntil;
+        public bool IsPresentingAttack => Application.isPlaying && feedbackOwner && Time.unscaledTime < feedbackUntil;
+        internal void HoldAttackPresentation(UnityEngine.Object owner, float seconds)
+        { feedbackOwner = owner; feedbackUntil = Time.unscaledTime + seconds; }
+        internal void ReleaseAttackPresentation(UnityEngine.Object owner)
+        {
+            if (!ReferenceEquals(feedbackOwner, owner)) return;
+            feedbackOwner = null; feedbackUntil = 0; CheckBattleEnd();
+        }
+        internal void BeginDamageResolution() => damageResolutionDepth++;
+        internal void EndDamageResolution()
+        { damageResolutionDepth = Mathf.Max(0, damageResolutionDepth - 1); if (damageResolutionDepth == 0) CheckBattleEnd(); }
         [SerializeField, Min(0)] private float enemyActionDelay = 0.25f;
         private EnemyAIController enemyAI;
         private OverwatchSystem overwatch;
@@ -31,7 +45,7 @@ namespace MechaXCOM
                 return null;
             }
         }
-        public bool IsAnyUnitBusy => IsAnyUnitMoving || PendingFacingUnit || (overwatch && overwatch.IsResolving);
+        public bool IsAnyUnitBusy => damageResolutionDepth > 0 || IsPresentingAttack || IsAnyUnitMoving || PendingFacingUnit || (overwatch && overwatch.IsResolving);
         public bool IsAnyUnitMoving
         {
             get
@@ -92,19 +106,20 @@ namespace MechaXCOM
             ActiveTeam = team;
             if (overwatch) overwatch.ExpireTeam(team);
             foreach (var unit in units)
-                if (unit && unit.isActiveAndEnabled && unit.IsAlive && unit.Team == team)
+                if (unit && unit.IsAlive && unit.Team == team)
                 {
                     unit.ActionPoints.ResetForTurn();
+                    if (unit.Movement) unit.Movement.ResetForTurn();
                     unit.Mobility.ResetMovement();
                 }
             if (Visibility) Visibility.Refresh();
         }
-        private void Update() => ResumeEnemyPhase();
+        private void Update() { if (!IsPresentingAttack) CheckBattleEnd(); ResumeEnemyPhase(); }
         private void OnEnable() => ResumeEnemyPhase();
         private void ResumeEnemyPhase()
         {
             if (Application.isPlaying && initialized && isActiveAndEnabled && !IsBattleOver && !IsPlayerTurn &&
-                enemyRoutine == null && enemyAI && enemyAI.IsReady)
+                enemyRoutine == null && !IsPresentingAttack && enemyAI && enemyAI.IsReady)
                 enemyRoutine = StartCoroutine(ExecuteEnemyPhase());
         }
         private IEnumerator ExecuteEnemyPhase()
@@ -118,6 +133,7 @@ namespace MechaXCOM
                 if (!actor || actor.Team != UnitTeam.Enemy || !actor.isActiveAndEnabled || !actor.IsAlive || !actor.Health.CanFight) continue;
                 ActiveEnemy = actor;
                 yield return enemyAI.ExecuteUnitTurn(actor, units);
+                while (IsPresentingAttack) yield return null;
                 CheckBattleEnd();
                 if (IsBattleOver) break;
                 // Keep instant attacks visible, including the last enemy's action.
@@ -153,6 +169,7 @@ namespace MechaXCOM
         }
         private void OnDisable()
         {
+            feedbackOwner = null; feedbackUntil = 0;
             if (overwatch) overwatch.CancelAll();
             SuspendEnemyPhase();
             CancelUnitActions();
@@ -165,7 +182,7 @@ namespace MechaXCOM
         }
         public void CheckBattleEnd()
         {
-            if (!initialized || IsBattleOver) return;
+            if (!initialized || IsBattleOver || damageResolutionDepth > 0 || IsPresentingAttack) return;
             bool playerAlive = false, enemyAlive = false;
             foreach (var unit in units)
             {

@@ -49,6 +49,15 @@ namespace MechaXCOM
                 Debug.LogWarning($"{name}: missing GridManager or CoverSystem; battle initialization stopped.", this);
                 return false;
             }
+            // Check the complete roster before mutating grid, resources or turn state.
+            if (units != null)
+                foreach (var unit in units)
+                    if (unit && unit.isActiveAndEnabled && unit.TryGetComponent<UnitWeaponLoadout>(out var loadout) &&
+                        !loadout.IsWithinWeightLimit(out var reason))
+                    {
+                        Debug.LogWarning($"{unit.name}: {reason} 전투 시작을 중단합니다.", unit);
+                        return false;
+                    }
             grid.Generate();
             if (battleCamera && battleCamera.TryGetComponent<BattleCameraOrbit>(out var cameraOrbit))
                 cameraOrbit.Initialize(grid);
@@ -82,6 +91,11 @@ namespace MechaXCOM
                 overwatch.Initialize(grid, combatSystem, turnManager, units);
             }
             if (turnManager) turnManager.Initialize(units);
+            if (combatSystem && turnManager && battleCamera)
+            {
+                var feedback = GetComponent<CombatFeedbackPresenter>() ?? gameObject.AddComponent<CombatFeedbackPresenter>();
+                feedback.Initialize(combatSystem, turnManager, battleCamera);
+            }
             var fog = GetComponent<FogOfWarPresenter>() ?? gameObject.AddComponent<FogOfWarPresenter>();
             fog.Initialize(grid, visibility, CollectTerrainRenderers());
             if (visualizer) visualizer.Initialize(grid, turnManager);

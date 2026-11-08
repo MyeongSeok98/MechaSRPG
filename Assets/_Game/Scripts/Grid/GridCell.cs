@@ -8,6 +8,8 @@ namespace MechaXCOM
         public Vector2Int Position { get; }
         public Vector3 WorldPosition { get; }
         public bool Walkable { get; internal set; } = true;
+        internal bool BaseWalkable = true;
+        internal int ObstacleCount, ShotBlockerCount;
         public bool BlocksShots { get; internal set; }
         public bool BlocksVision { get; internal set; }
         public BattleUnit OccupyingUnit { get; internal set; }

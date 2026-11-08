@@ -58,28 +58,28 @@ namespace MechaXCOM
             GUI.backgroundColor = oldBackground;
             GUILayout.BeginArea(new Rect(DisplayRect.x + 14, DisplayRect.y + 10, DisplayRect.width - 28, DisplayRect.height - 20));
             scrollPosition = GUILayout.BeginScrollView(scrollPosition);
-            GUILayout.Label("GROUND TACTICS / LAB", titleStyle);
+            ResourceTypography.LayoutLabel("GROUND TACTICS / LAB", titleStyle);
             if (turns)
             {
-                GUILayout.Label($"Turn: {turns.TurnNumber} / {turns.ActiveTeam}", textStyle);
-                if (VisibleActingEnemy) GUILayout.Label($"Acting: {VisibleActingEnemy.name}", textStyle);
+                ResourceTypography.LayoutLabel($"Turn: {turns.TurnNumber} / {turns.ActiveTeam}", textStyle);
+                if (VisibleActingEnemy) ResourceTypography.LayoutLabel($"Acting: {VisibleActingEnemy.name}", textStyle);
                 var decision = turns.Overwatch ? turns.Overwatch.PendingDecision : null;
                 if (decision.HasValue)
                 {
-                    GUILayout.Label($"Overwatch: {decision.Value.Watcher.name}", textStyle);
-                    GUILayout.Label("Choose part / Fire or Skip", textStyle);
+                    ResourceTypography.LayoutLabel($"Overwatch: {decision.Value.Watcher.name}", textStyle);
+                    ResourceTypography.LayoutLabel("Choose part / Fire or Skip", textStyle);
                 }
             }
             if (!selected)
             {
-                GUILayout.Label("Click the capsule to select.", textStyle);
-                GUILayout.Label("North = +Z / East = +X", textStyle);
+                ResourceTypography.LayoutLabel("Click the capsule to select.", textStyle);
+                ResourceTypography.LayoutLabel("North = +Z / East = +X", textStyle);
             }
             else
             {
                 if (selected.Health)
                 {
-                    GUILayout.Label($"{selected.Health.State.ToString().ToUpperInvariant()} / AP {selected.ActionPoints.CurrentPoints}/{selected.ActionPoints.MaxPoints}", textStyle);
+                    ResourceTypography.LayoutLabel($"{selected.Health.State.ToString().ToUpperInvariant()} / AP {selected.ActionPoints.CurrentPoints}/{selected.ActionPoints.MaxPoints}", textStyle);
                     var hpStyle = new GUIStyle(textStyle) { fontSize = 12 };
                     for (int i = 0; i < 7; i += 2)
                     {
@@ -87,26 +87,27 @@ namespace MechaXCOM
                         for (int j = i; j < Mathf.Min(i + 2, 7); j++)
                         {
                             var part = (TargetBodyPart)(j + 1);
-                            GUILayout.Label($"{BodyTargetRules.Label(part)} {selected.Health.GetCurrentHP(part)}/{selected.Health.GetMaxHP(part)}",
+                            ResourceTypography.LayoutLabel($"{BodyTargetRules.Label(part)} {selected.Health.GetCurrentHP(part)}/{selected.Health.GetMaxHP(part)}",
                                 hpStyle, GUILayout.Width((DisplayRect.width - 28) / 2));
                         }
                         GUILayout.EndHorizontal();
                     }
                 }
-                GUILayout.Label($"Cell: ({selected.CurrentGridPosition.x}, {selected.CurrentGridPosition.y})", textStyle);
-                GUILayout.Label($"Moved: {selected.Mobility.MovedCells} Cells", textStyle);
-                GUILayout.Label($"Facing: {selected.Facing}", textStyle);
+                ResourceTypography.LayoutLabel($"Cell: ({selected.CurrentGridPosition.x}, {selected.CurrentGridPosition.y})", textStyle);
+                ResourceTypography.LayoutLabel($"Moved: {selected.Mobility.MovedCells} Cells", textStyle);
+                ResourceTypography.LayoutLabel($"Facing: {selected.Facing}", textStyle);
+                ResourceTypography.LayoutLabel($"Pilot: S {selected.PilotShooting} / M {selected.PilotMelee} / E {selected.PilotEvasion} / T {selected.PilotTechnique}", textStyle);
                 if (selected.Ammo)
-                    foreach (var slot in new[] { WeaponSlot.LeftHand, WeaponSlot.RightHand })
+                    foreach (var slot in new[] { WeaponSlot.LeftHand, WeaponSlot.RightHand, WeaponSlot.Backpack })
                     {
                         var ammo = selected.Ammo.GetStatus(slot);
                         if (ammo.Weapon && ammo.UsesAmmo)
-                            GUILayout.Label($"{slot}: {WeaponAmmoText.Summary(ammo)}", textStyle);
+                            ResourceTypography.LayoutLabel($"{slot}: {WeaponAmmoText.Summary(ammo, slot)}", textStyle);
                     }
                 if (selected.Overwatch && selected.Overwatch.IsActive)
-                    GUILayout.Label($"OVERWATCH: {selected.Overwatch.Facing} / {selected.Overwatch.Weapon.DisplayName} / Hit x0.75", textStyle);
+                    ResourceTypography.LayoutLabel($"OVERWATCH: {selected.Overwatch.Facing} / {selected.Overwatch.Weapon.DisplayName} / Hit x0.75", textStyle);
                 GUILayout.Space(10);
-                GUILayout.Label("INCOMING COVER MULTIPLIER", titleStyle);
+                ResourceTypography.LayoutLabel("INCOMING COVER MULTIPLIER", titleStyle);
                 if (grid.TryGetCell(selected.CurrentGridPosition, out _))
                 {
                     string[] names = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
@@ -117,15 +118,16 @@ namespace MechaXCOM
                         for (int j = i; j < i + 2; j++)
                         {
                             var direction = CoverDirections.Clockwise[j];
-                            GUILayout.Label($"{names[j]}: ×{GetIncomingCoverMultiplier(direction):0.##}",
+                            ResourceTypography.LayoutLabel($"{names[j]}: ×{GetIncomingCoverMultiplier(direction):0.##}",
                                 coverStyle, GUILayout.Width((DisplayRect.width - 28) / 2));
                         }
                         GUILayout.EndHorizontal();
                     }
                 }
                 GUILayout.Space(10);
-                GUILayout.Label(turns && !turns.IsPlayerTurn ? "Waiting for enemy actions..." :
-                    selected.Movement.IsMoving ? "Moving..." : $"Move: {selected.AvailableMovementRange} cells / 1 AP each", textStyle);
+                ResourceTypography.LayoutLabel(turns && !turns.IsPlayerTurn ? "Waiting for enemy actions..." :
+                    selected.Movement.IsMoving ? "Moving..." : $"Move: {selected.AvailableMovementRange} cells / {selected.GetMovementCellsPerAP():0.##} cells per AP", textStyle);
+                ResourceTypography.LayoutLabel($"Movement AP paid: {selected.Movement.PaidMovementAP} / prepaid: {selected.Movement.PrepaidMovementAP:0.###} AP", textStyle);
             }
             if (input && turns)
             {
@@ -134,21 +136,24 @@ namespace MechaXCOM
                 var preview = input.CurrentAttackPreview;
                 if (target)
                 {
-                    GUILayout.Label($"{preview.TargetState.ToString().ToUpperInvariant()} / {BodyTargetRules.Label(preview.TargetPart)} {preview.PartHP}/{preview.PartMaxHP}", titleStyle);
-                    GUILayout.Label($"Distance: {preview.Distance:F2} cells", textStyle);
-                    GUILayout.Label($"Weapon: {preview.WeaponName}", textStyle);
-                    GUILayout.Label($"Attack: {preview.Type} / Damage {AttackPreviewText.DamageRange(preview)}", textStyle);
-                    GUILayout.Label($"Armor: {preview.TargetArmorType} ×{preview.ArmorMultiplier:0.##}", textStyle);
-                    GUILayout.Label($"Cover: {preview.Direction} ×{preview.CoverMultiplier:0.##} / Part ×{preview.PartMultiplier:0.##}", textStyle);
-                    GUILayout.Label($"Attacker head: ×{preview.HeadMultiplier:0.##}", textStyle);
-                    GUILayout.Label($"Grip: ×{preview.GripMultiplier:0.##} / Range: ×{preview.DistanceMultiplier:0.##}", textStyle);
-                    GUILayout.Label(preview.BlockedByBuilding ? "Hit: BLOCKED BY BUILDING" :
+                    ResourceTypography.LayoutLabel($"{preview.TargetState.ToString().ToUpperInvariant()} / {BodyTargetRules.Label(preview.TargetPart)} {preview.PartHP}/{preview.PartMaxHP}", titleStyle);
+                    ResourceTypography.LayoutLabel($"Distance: {preview.Distance:F2} cells", textStyle);
+                    ResourceTypography.LayoutLabel($"Weapon: {preview.WeaponName}", textStyle);
+                    ResourceTypography.LayoutLabel($"Attack: {preview.Type} / Damage {AttackPreviewText.DamageRange(preview)}", textStyle);
+                    if (preview.AdditionalHitPartCount > 0) ResourceTypography.LayoutLabel(AttackPreviewText.AdditionalDamage(preview), textStyle);
+                    ResourceTypography.LayoutLabel($"Damage taken: {preview.ArmorMultiplier * 100f:0}% (×{preview.ArmorMultiplier:0.##})", textStyle);
+                    ResourceTypography.LayoutLabel($"Cover: {preview.Direction} ×{preview.CoverMultiplier:0.##} / Part ×{preview.PartMultiplier:0.##}", textStyle);
+                    ResourceTypography.LayoutLabel($"Attacker head: ×{preview.HeadMultiplier:0.##}", textStyle);
+                    ResourceTypography.LayoutLabel($"Grip: ×{preview.GripMultiplier:0.##} / Range: ×{preview.DistanceMultiplier:0.##}", textStyle);
+                    ResourceTypography.LayoutLabel($"Mecha hit: ×{preview.MechaMultiplier:0.###} / Pilot hit: ×{preview.PilotHitMultiplier:0.###}", textStyle);
+                    ResourceTypography.LayoutLabel($"Pilot damage: ×{preview.PilotDamageMultiplier:0.###}", textStyle);
+                    ResourceTypography.LayoutLabel(preview.BlockedByBuilding ? "Hit: BLOCKED BY BUILDING" :
                         $"Hit: {preview.HitChance}%   Damage: {AttackPreviewText.DamageRange(preview)}", textStyle);
-                    if (!preview.CanAttack) GUILayout.Label(preview.FailureReason, textStyle);
-                    GUILayout.Label($"Critical: {preview.CriticalChance:0.##}% / Damage ×{preview.CriticalDamageMultiplier:0.##}", textStyle);
+                    if (!preview.CanAttack) ResourceTypography.LayoutLabel(preview.FailureReason, textStyle);
+                    ResourceTypography.LayoutLabel($"Critical: {preview.CriticalChance:0.##}% / Damage ×{preview.CriticalDamageMultiplier:0.##}", textStyle);
                 }
                 else if (!turns.IsBattleOver && turns.IsPlayerTurn)
-                    GUILayout.Label(input.ActionMode == UnitActionMode.Move ? "Choose a destination in the teal range." :
+                    ResourceTypography.LayoutLabel(input.ActionMode == UnitActionMode.Move ? "Choose a destination in the teal range." :
                         input.ActionMode == UnitActionMode.Attack ? "Select an enemy in the red range." :
                         selected && selected.Health.State == MechState.Critical ? "CRITICAL: Eject costs 1 AP." :
                         "Choose Move / Attack / Overwatch / Eject beside the unit.", textStyle);
@@ -158,10 +163,14 @@ namespace MechaXCOM
                 GUI.enabled = oldEnabled;
                 var result = input.LastAttackResult;
                 if (result.WasExecuted)
-                    GUILayout.Label($"{(result.IsCritical ? "CRITICAL HIT" : result.Hit ? "HIT" : "MISS")} / Damage {result.DamageDealt}\n{BodyTargetRules.Label(result.TargetPart)} HP: {result.TargetPartHPAfter} / {result.TargetStateAfter.ToString().ToUpperInvariant()}", textStyle);
-                if (!string.IsNullOrEmpty(input.InputMessage)) GUILayout.Label(input.InputMessage, textStyle);
+                {
+                    ResourceTypography.LayoutLabel($"{(result.IsCritical ? "CRITICAL HIT" : result.Hit ? "HIT" : "MISS")} / Damage {result.DamageDealt}\n{BodyTargetRules.Label(result.TargetPart)} HP: {result.TargetPartHPAfter} / {result.TargetStateAfter.ToString().ToUpperInvariant()}", textStyle);
+                    if (result.AdditionalPartDamage != null && result.AdditionalPartDamage.Count > 0)
+                        ResourceTypography.LayoutLabel(AttackPreviewText.AdditionalDamageResult(result), textStyle);
+                }
+                if (!string.IsNullOrEmpty(input.InputMessage)) ResourceTypography.LayoutLabel(input.InputMessage, textStyle);
                 if (turns.IsBattleOver)
-                    GUILayout.Label(turns.IsPlayerVictory ? "ENEMY DEFEATED\nRestart Play to try again." : "PLAYER DEFEATED", titleStyle);
+                    ResourceTypography.LayoutLabel(turns.IsPlayerVictory ? "ENEMY DEFEATED\nRestart Play to try again." : "PLAYER DEFEATED", titleStyle);
             }
             GUILayout.EndScrollView();
             GUILayout.EndArea();
@@ -169,3 +178,4 @@ namespace MechaXCOM
         }
     }
 }
+

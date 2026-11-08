@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MECHA · Field Command — 전투 UI 프로토타입</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="battle-app" class="battle-shell">
+  <div class="terrain" aria-hidden="true"></div><div class="vignette" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">▰</span> MECHA <span class="slash">//</span> FIELD COMMAND <small>INTERACTIVE CONCEPT</small></div>
+    <div class="turn-status"><span class="status-dot"></span><strong id="turn-label">아군 턴</strong><span class="divider">/</span><span id="turn-number">03</span></div>
+    <button id="end-turn" class="button end-turn">턴 종료 <span>↵</span></button>
+  </header>
+
+  <section class="mission"><span class="eyebrow">OPERATION 07 · DUST LINE</span><h1>산업 지구 확보</h1><p><span class="objective-square"></span> 적 소대 무력화 <strong id="objective-progress">0 / 3</strong></p></section>
+  <nav class="roster" aria-label="아군 소대"><div class="section-caption">SQUAD STATUS <span>03 UNITS</span></div><div id="roster-list"></div></nav>
+
+  <section id="map" class="tactical-map" aria-label="전장. 기체를 클릭해 선택하고 이동 모드에서 빈 지점을 클릭하세요.">
+    <svg id="range-overlay" class="range-overlay" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true"><path id="range-shape" d="M420 160 L760 350 L420 540 L80 350 Z"/></svg>
+    <div id="movement-ghost" class="movement-ghost" hidden>이동 지점</div>
+    <div id="map-units"></div>
+    <div class="map-coordinates"><span>SECTOR D–07</span><span>GRID · 40 × 40</span></div>
+  </section>
+
+  <aside id="unit-card" class="unit-card panel" aria-label="선택 기체 상태"></aside>
+  <aside id="target-panel" class="target-panel panel" aria-label="대상 부위 조준"></aside>
+
+  <section class="command-area" aria-label="행동 선택">
+    <div id="weapon-menu" class="weapon-menu"></div>
+    <div id="mode-hint" class="mode-hint"></div>
+    <nav id="action-bar" class="action-bar panel" aria-label="기체 행동">
+      <button class="action-button" data-action="move"><span class="action-symbol">↗</span>이동<small>MOVE</small></button>
+      <button class="action-button" data-action="attack"><span class="action-symbol">⌖</span>공격<small>ATTACK</small></button>
+      <button class="action-button" data-action="overwatch"><span class="action-symbol">◷</span>경계<small>GUARD · 2 AP</small></button>
+      <button class="action-button" data-action="reload"><span class="action-symbol">↻</span>재장전<small>RELOAD · 2 AP</small></button>
+      <button class="action-button eject" data-action="eject"><span class="action-symbol">⇧</span>긴급탈출<small>EJECT · 1 AP</small></button>
+    </nav>
+  </section>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="combat-feed" class="combat-feed" aria-live="polite"></div>
+  <footer class="footer"><span><b>좌클릭</b> 선택 <i>·</i> <b>ESC</b> 취소 <i>·</i> <b>휠</b> 배경 확대</span><span class="prototype-label">UI 프로토타입 · 전투 수치는 예시입니다</span><button id="reset" class="reset-button">시안 초기화 ↺</button></footer>
+  <dialog id="confirm-dialog"><form method="dialog"><span class="eyebrow">PILOT SAFETY PROCEDURE</span><h2>긴급탈출을 실행할까요?</h2><p>AP 1을 소모합니다. 이 기체는 이번 시연에서 더 이상 행동할 수 없습니다.</p><div class="dialog-actions"><button class="button" value="cancel">취소</button><button class="button danger" value="eject">탈출 확정</button></div></form></dialog>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

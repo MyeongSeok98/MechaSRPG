@@ -68,7 +68,7 @@ namespace MechaXCOM
             unit.Overwatch && unit.Overwatch.isActiveAndEnabled && !unit.Overwatch.IsActive &&
             unit.Movement && unit.Movement.isActiveAndEnabled && unit.CanTakeAction && turns.CanAct(unit) &&
             unit.ActionPoints.CanSpend(EntryAPCost) &&
-            unit.Combat.TryGetAttack(slot, out var attack, out _) && attack.Type == AttackType.Ranged &&
+            unit.Combat.TryGetAttack(slot, out var attack, out _) && attack.Type == AttackType.Ranged && !attack.Weapon.IsIndirect &&
             unit.Ammo && unit.Ammo.CanFire(slot);
 
         public bool TryBegin(BattleUnit unit, WeaponSlot slot, FacingDirection facing)
@@ -116,7 +116,7 @@ namespace MechaXCOM
             CoversCell(watcher, target.CurrentGridPosition, attack, watcher.Overwatch.Facing);
 
         internal bool CanPreviewDecision(BattleUnit watcher, BattleUnit target, WeaponSlot slot) =>
-            IsResolving && HasDecisionReceiver && pendingDecision.HasValue && currentMover == target && currentWatcher == watcher &&
+            IsResolving && !turns.IsPresentingAttack && HasDecisionReceiver && pendingDecision.HasValue && currentMover == target && currentWatcher == watcher &&
             pendingDecision.Value.Watcher == watcher && pendingDecision.Value.Target == target && pendingDecision.Value.Slot == slot &&
             ValidReaction(watcher, target, slot);
 
@@ -136,7 +136,7 @@ namespace MechaXCOM
         private bool HasPending(long id)
         {
             ValidatePending();
-            return executingDecisionId == 0 && pendingDecision.HasValue && pendingDecision.Value.Id == id;
+            return !turns.IsPresentingAttack && executingDecisionId == 0 && pendingDecision.HasValue && pendingDecision.Value.Id == id;
         }
         public AttackPreview GetDecisionPreview(long id, TargetBodyPart part)
         {
@@ -191,6 +191,7 @@ namespace MechaXCOM
                         if (version != resolutionVersion || !pendingDecision.HasValue) break;
                         yield return null;
                     }
+                    while (version == resolutionVersion && turns && turns.IsPresentingAttack) yield return null;
                 }
             }
             finally

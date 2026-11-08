@@ -24,14 +24,14 @@ namespace MechaXCOM
         {
             switch (part)
             {
-                case TargetBodyPart.Torso: return "몸통";
-                case TargetBodyPart.Cockpit: return "콕피트";
-                case TargetBodyPart.Head: return "머리";
-                case TargetBodyPart.LeftArm: return "왼팔";
-                case TargetBodyPart.RightArm: return "오른팔";
-                case TargetBodyPart.LeftLeg: return "왼다리";
-                case TargetBodyPart.RightLeg: return "오른다리";
-                default: return "전체";
+                case TargetBodyPart.Torso: return "Body";
+                case TargetBodyPart.Cockpit: return "C.Pit";
+                case TargetBodyPart.Head: return "Head";
+                case TargetBodyPart.LeftArm: return "L.Arm";
+                case TargetBodyPart.RightArm: return "R.arm";
+                case TargetBodyPart.LeftLeg: return "L.Leg";
+                case TargetBodyPart.RightLeg: return "R.Leg";
+                default: return "Body";
             }
         }
     }

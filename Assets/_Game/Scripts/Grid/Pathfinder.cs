@@ -37,12 +37,15 @@ namespace MechaXCOM
 
         // Search the whole grid for an attack position; actual movement still uses FindPath's budget.
         public static List<GridCell> FindPathToRange(GridManager grid, BattleUnit unit, Vector2Int target, int range, AttackType type)
+            => FindPathToRange(grid, unit, target, range, type, null);
+        public static List<GridCell> FindPathToRange(GridManager grid, BattleUnit unit, Vector2Int target, int range,
+            AttackType type, System.Func<Vector2Int, bool> canAttackFrom)
         {
             var path = new List<GridCell>();
             if (!grid || !unit || range <= 0 || (type != AttackType.Melee && type != AttackType.Ranged) || !grid.TryGetCell(target, out _) ||
                 !grid.TryGetCell(unit.CurrentGridPosition, out var start) ||
                 start.OccupyingUnit != unit || !start.Walkable ||
-                InAttackPosition(grid, start.Position, target, range, type)) return path;
+                InAttackPosition(grid, start.Position, target, range, type, canAttackFrom)) return path;
 
             var parents = new Dictionary<Vector2Int, Vector2Int>();
             var queue = new Queue<Vector2Int>();
@@ -51,7 +54,7 @@ namespace MechaXCOM
             while (queue.Count > 0)
             {
                 var current = queue.Dequeue();
-                if (InAttackPosition(grid, current, target, range, type))
+                if (InAttackPosition(grid, current, target, range, type, canAttackFrom))
                 {
                     while (current != start.Position)
                     {
@@ -75,9 +78,10 @@ namespace MechaXCOM
         }
         public static List<GridCell> FindPathToRange(GridManager grid, BattleUnit unit, Vector2Int target, int range)
             => FindPathToRange(grid, unit, target, range, AttackType.Ranged);
-        private static bool InAttackPosition(GridManager grid, Vector2Int from, Vector2Int target, int range, AttackType type) =>
-            CombatMath.IsInRange(from, target, range) && (type == AttackType.Melee
-                ? grid.HasMeleeReach(from, target, range) : grid.HasClearShot(from, target));
+        private static bool InAttackPosition(GridManager grid, Vector2Int from, Vector2Int target, int range,
+            AttackType type, System.Func<Vector2Int, bool> canAttackFrom) =>
+            CombatMath.IsInRange(from, target, range) && (canAttackFrom != null ? canAttackFrom(from) :
+                type == AttackType.Melee ? grid.HasMeleeReach(from, target, range) : grid.HasClearShot(from, target));
 
         private static Dictionary<Vector2Int, Vector2Int> Search(GridManager grid, BattleUnit unit)
         {

@@ -18,11 +18,16 @@ namespace MechaXCOM
         [SerializeField] private string displayName;
         [SerializeField, TextArea(3, 6)] private string description;
         [SerializeField] private GameObject modelPrefab;
-        [SerializeField] private ArmorType armorType = ArmorType.Standard;
+        // Legacy serialized armor remains readable; new percentage fields take precedence.
+        [SerializeField, HideInInspector] private ArmorType armorType = ArmorType.Standard;
+        [SerializeField, HideInInspector] private int beamDamageTakenPercent = -1;
+        [SerializeField, HideInInspector] private int ballisticDamageTakenPercent = -1;
+        public const int MinDamageTakenPercent = 50, MaxDamageTakenPercent = 150;
         [SerializeField, Min(1)] private int baseAP = 5;
         [SerializeField, Range(0, MaxCombatStat)] private int accuracy;
         [SerializeField, Range(0, MaxCombatStat)] private int evasion;
         [SerializeField, Min(0)] private float movementCellsPerAP = 1f;
+        [SerializeField, Min(0)] private int detectionRange = 10;
         [SerializeField, Min(1)] private int bodyMaxHP = 20;
         [SerializeField, Min(1)] private int cockpitMaxHP = 6;
         [SerializeField, Min(1)] private int headMaxHP = 6;
@@ -38,10 +43,15 @@ namespace MechaXCOM
         public string Description => description;
         public GameObject ModelPrefab => modelPrefab;
         public ArmorType ArmorType => armorType;
+        public int BeamDamageTakenPercent => ResolveDamageTakenPercent(beamDamageTakenPercent, RangedWeaponCategory.Beam);
+        public int BallisticDamageTakenPercent => ResolveDamageTakenPercent(ballisticDamageTakenPercent, RangedWeaponCategory.Ballistic);
+        private int ResolveDamageTakenPercent(int value, RangedWeaponCategory category) => value == -1
+            ? Mathf.RoundToInt(CombatMath.CalculateArmorMultiplier(armorType, AttackType.Ranged, category) * 100f) : value;
         public int BaseAP => baseAP;
         public int Accuracy => accuracy;
         public int Evasion => evasion;
         public float MovementCellsPerAP => movementCellsPerAP;
+        public int DetectionRange => detectionRange;
         public float ChassisWeightTonnes => chassisWeightTonnes;
         public float EquipmentWeightLimitTonnes => equipmentWeightLimitTonnes;
         public int GetMaxHP(TargetBodyPart part)
@@ -62,12 +72,17 @@ namespace MechaXCOM
         {
             reason = null;
             if (string.IsNullOrWhiteSpace(mechaId)) reason = "기체 ID를 입력하세요.";
-            else if (!System.Enum.IsDefined(typeof(ArmorType), armorType)) reason = "유효한 장갑 타입을 선택하세요.";
+            else if ((beamDamageTakenPercent == -1 || ballisticDamageTakenPercent == -1) &&
+                !System.Enum.IsDefined(typeof(ArmorType), armorType)) reason = "유효한 장갑 타입을 선택하세요.";
+            else if (!ValidDamageTakenPercent(beamDamageTakenPercent) || !ValidDamageTakenPercent(ballisticDamageTakenPercent))
+                reason = "실탄·빔 받는 피해는 50~150%여야 합니다.";
             else if (baseAP < 1) reason = "기본 AP는 1 이상이어야 합니다.";
             else if (accuracy < 0 || accuracy > MaxCombatStat || evasion < 0 || evasion > MaxCombatStat)
                 reason = "기체 명중력과 회피력은 0~50이어야 합니다.";
             else if (!Finite(movementCellsPerAP) || movementCellsPerAP <= 0)
                 reason = "AP당 이동거리는 0보다 큰 유한한 값이어야 합니다.";
+            else if (detectionRange < 0)
+                reason = "기본 탐지 거리는 0 이상이어야 합니다.";
             else if (bodyMaxHP < 1 || cockpitMaxHP < 1 || headMaxHP < 1 || leftArmMaxHP < 1 ||
                 rightArmMaxHP < 1 || leftLegMaxHP < 1 || rightLegMaxHP < 1)
                 reason = "모든 부위의 최대 HP는 1 이상이어야 합니다.";
@@ -77,12 +92,17 @@ namespace MechaXCOM
             return reason == null;
         }
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+        private static bool ValidDamageTakenPercent(int value) => value == -1 ||
+            (value >= MinDamageTakenPercent && value <= MaxDamageTakenPercent);
         private void OnValidate()
         {
             baseAP = Mathf.Max(1, baseAP);
+            if (beamDamageTakenPercent != -1) beamDamageTakenPercent = Mathf.Clamp(beamDamageTakenPercent, MinDamageTakenPercent, MaxDamageTakenPercent);
+            if (ballisticDamageTakenPercent != -1) ballisticDamageTakenPercent = Mathf.Clamp(ballisticDamageTakenPercent, MinDamageTakenPercent, MaxDamageTakenPercent);
             accuracy = Mathf.Clamp(accuracy, 0, MaxCombatStat);
             evasion = Mathf.Clamp(evasion, 0, MaxCombatStat);
             if (!Finite(movementCellsPerAP) || movementCellsPerAP <= 0) movementCellsPerAP = 1f;
+            detectionRange = Mathf.Max(0, detectionRange);
             bodyMaxHP = Mathf.Max(1, bodyMaxHP); cockpitMaxHP = Mathf.Max(1, cockpitMaxHP);
             headMaxHP = Mathf.Max(1, headMaxHP);
             leftArmMaxHP = Mathf.Max(1, leftArmMaxHP); rightArmMaxHP = Mathf.Max(1, rightArmMaxHP);

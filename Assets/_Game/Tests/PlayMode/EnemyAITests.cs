@@ -108,7 +108,9 @@ namespace MechaXCOM.Tests
             battle.Enemies[0].ActionPoints.TrySpend(4);
             battle.Enemies[0].gameObject.SetActive(false);
             battle.Turns.TryEndTurn(); yield return battle.WaitForPlayerTurn();
-            Assert.That(battle.Enemies[0].ActionPoints.CurrentPoints, Is.EqualTo(1));
+            Assert.That(battle.Enemies[0].ActionPoints.CurrentPoints, Is.EqualTo(battle.Enemies[0].ActionPoints.MaxPoints),
+                "Inactive living units receive the new turn budget, but do not act while inactive.");
+            Assert.That(battle.Enemies[0].Mobility.MovedCells, Is.Zero);
             Assert.That(battle.Enemies[1].ActionPoints.CurrentPoints, Is.EqualTo(2));
             Assert.That(battle.Players[0].Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(15));
         }

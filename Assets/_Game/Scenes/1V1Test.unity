@@ -586,8 +586,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bc3651f9280893e4bba77a692d0f183e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.CoverSystem
-  halfCoverMultiplier: 0.75
-  fullCoverMultiplier: 0.5
+  halfCoverMultiplier: 0.8
+  fullCoverMultiplier: 0.6
 --- !u!114 &869388590
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -881,10 +881,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1aaf93c1b70148b49b5e968ce5f07b6f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.UnitWeaponLoadout
-  leftWeapon: {fileID: 11400000, guid: ad7e1a73866fb3f4d8b2af9666161e01, type: 2}
+  leftWeapon: {fileID: 11400000, guid: 5bdf0a580838c88458c1e4516fdf1f34, type: 2}
   rightWeapon: {fileID: 0}
   leftGrip: 1
   rightGrip: 0
+  leftSpareMagazineCount: 3
+  rightSpareMagazineCount: -1
+  backpack: {fileID: 11400000, guid: c5b777d322f461d46aec72ea512eb6b7, type: 2}
 --- !u!1 &1475056252
 GameObject:
   m_ObjectHideFlags: 0
@@ -1020,10 +1023,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1aaf93c1b70148b49b5e968ce5f07b6f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.UnitWeaponLoadout
-  leftWeapon: {fileID: 11400000, guid: ad7e1a73866fb3f4d8b2af9666161e01, type: 2}
+  leftWeapon: {fileID: 11400000, guid: 2b0a59669b2232248a03d45da3bb8b07, type: 2}
   rightWeapon: {fileID: 0}
   leftGrip: 1
   rightGrip: 0
+  leftSpareMagazineCount: -1
+  rightSpareMagazineCount: -1
+  backpack: {fileID: 0}
 --- !u!4 &1957762157 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3410385456814505720, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
@@ -1056,6 +1062,9 @@ MonoBehaviour:
   rightWeapon: {fileID: 11400000, guid: 6e59550a33b785644995ec3e296e1358, type: 2}
   leftGrip: 0
   rightGrip: 0
+  leftSpareMagazineCount: -1
+  rightSpareMagazineCount: -1
+  backpack: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

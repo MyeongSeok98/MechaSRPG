@@ -22,12 +22,17 @@ namespace MechaXCOM.Tests
         public MechaAccuracyTestBattle(int playerAccuracy = 0, int playerEvasion = 0,
             int enemyAccuracy = 0, int enemyEvasion = 0, bool withAI = false,
             int? playerTechnique = null, int? enemyTechnique = null,
-            ArmorType playerArmor = ArmorType.Standard, ArmorType enemyArmor = ArmorType.Standard)
+            ArmorType playerArmor = ArmorType.Standard, ArmorType enemyArmor = ArmorType.Standard,
+            int playerShooting = 0, int playerMelee = 0, int playerPilotEvasion = 0,
+            int enemyShooting = 0, int enemyMelee = 0, int enemyPilotEvasion = 0,
+            Action<MechaData, MechaData> configureMechaData = null)
         {
             Root = new GameObject("Mecha accuracy tests");
             Grid = Root.AddComponent<GridManager>(); Grid.Configure(12, 12, 2); Grid.Generate();
             PlayerData = Data("p", playerAccuracy, playerEvasion, playerArmor); EnemyData = Data("e", enemyAccuracy, enemyEvasion, enemyArmor);
-            PlayerPilot = Pilot("p", playerTechnique); EnemyPilot = Pilot("e", enemyTechnique);
+            configureMechaData?.Invoke(PlayerData, EnemyData);
+            PlayerPilot = Pilot("p", playerTechnique, playerShooting, playerMelee, playerPilotEvasion);
+            EnemyPilot = Pilot("e", enemyTechnique, enemyShooting, enemyMelee, enemyPilotEvasion);
             Player = Unit(new Vector2Int(1, 1), UnitTeam.Player, PlayerData, PlayerPilot);
             Enemy = Unit(new Vector2Int(3, 1), UnitTeam.Enemy, EnemyData, EnemyPilot);
             Turns = Root.AddComponent<TurnManager>();
@@ -49,11 +54,11 @@ namespace MechaXCOM.Tests
             var data = ScriptableObject.CreateInstance<MechaData>();
             JsonUtility.FromJsonOverwrite($"{{\"mechaId\":\"{id}\",\"accuracy\":{accuracy},\"evasion\":{evasion},\"armorType\":{(int)armor}}}", data); return data;
         }
-        private static CharacterData Pilot(string id, int? technique)
+        private static CharacterData Pilot(string id, int? technique, int shooting, int melee, int evasion)
         {
-            if (!technique.HasValue) return null;
+            if (!technique.HasValue && shooting == 0 && melee == 0 && evasion == 0) return null;
             var data = ScriptableObject.CreateInstance<CharacterData>();
-            JsonUtility.FromJsonOverwrite($"{{\"characterId\":\"{id}\",\"technique\":{technique.Value}}}", data);
+            JsonUtility.FromJsonOverwrite($"{{\"characterId\":\"{id}\",\"technique\":{technique ?? 0},\"shooting\":{shooting},\"melee\":{melee},\"evasion\":{evasion}}}", data);
             return data;
         }
         public BattleUnit Unit(Vector2Int position, UnitTeam team, MechaData data, CharacterData pilot = null)

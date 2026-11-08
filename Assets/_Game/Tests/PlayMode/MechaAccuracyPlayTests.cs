@@ -34,7 +34,7 @@ namespace MechaXCOM.Tests
         {
             battle = new MechaAccuracyTestBattle(enemyAccuracy: 50, withAI: true); battle.Combat.SetRollSource(() => 90);
             Assert.That(battle.Turns.TryEndTurn(), Is.True); yield return WaitForPlayerTurn();
-            Assert.That(battle.Player.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(15), "Accuracy50 raises base80 to100.");
+            Assert.That(battle.Player.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(15), "Accuracy50 raises base80 to the99% cap; roll90 still hits.");
             Assert.That(battle.Enemy.ActionPoints.CurrentPoints, Is.EqualTo(2)); Assert.That(battle.Turns.IsAnyUnitBusy, Is.False);
         }
         [UnityTest] public IEnumerator EnemyAIMissesBecauseOfPlayerMechaEvasion()

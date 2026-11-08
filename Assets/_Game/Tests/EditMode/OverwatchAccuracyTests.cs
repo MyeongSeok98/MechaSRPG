@@ -17,8 +17,8 @@ namespace MechaXCOM.Tests
             Assert.That(Chance(100, grip: 1.2f, reaction: .75f), Is.EqualTo(90));
         [Test] public void ZeroDistanceMultiplierRemainsZeroWithLargeGrip() =>
             Assert.That(Chance(80, grip: float.MaxValue, distance: 0), Is.Zero);
-        [Test] public void LargeFiniteMultipliersClampAtOneHundred() =>
-            Assert.That(Chance(80, grip: float.MaxValue, distance: float.MaxValue), Is.EqualTo(100));
+        [Test] public void LargeFiniteMultipliersClampAtNinetyNine() =>
+            Assert.That(Chance(80, grip: float.MaxValue, distance: float.MaxValue), Is.EqualTo(99));
         [Test] public void NegativeBaseChanceClampsAtZero() => Assert.That(Chance(-10), Is.Zero);
         [TestCase(10, .45f, 1f, 1f, 5)]
         [TestCase(80, .45f, .5f, .75f, 14)]

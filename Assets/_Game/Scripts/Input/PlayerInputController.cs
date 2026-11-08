@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 namespace MechaXCOM
 {
     public enum UnitActionMode { Menu, Move, Attack, Facing, OverwatchWeapon, OverwatchFacing, ReloadWeapon }
-    public class PlayerInputController : MonoBehaviour
+    public partial class PlayerInputController : MonoBehaviour
     {
         private OverwatchDecisionController overwatchDecision;
         private float lastOverwatchDecisionClickTime = float.NegativeInfinity;
@@ -29,6 +29,8 @@ namespace MechaXCOM
         public bool BeginWeaponAttack(WeaponSlot slot)
         {
             if (!CanBeginWeaponAttack(slot) || !selected.Combat.TryGetAttack(slot, out var stats, out _)) return false;
+            ClearIndirectAim(); LastIndirectAttackResult = default;
+            ClearCoverAim(); LastCoverAttackResult = default;
             ClearOverwatchSelection();
             if (SelectedWeaponSlot != slot) LastAttackResult = default;
             SelectedWeaponSlot = slot; SelectedAttackType = stats.Type;
@@ -40,16 +42,22 @@ namespace MechaXCOM
         }
         public IReadOnlyList<WeaponSlot> GetAvailableWeaponSlots(AttackType? type = null)
         {
-            var result = new List<WeaponSlot>(2);
+            var result = new List<WeaponSlot>(3);
             if (!selected || !selected.Combat || !selected.Combat.isActiveAndEnabled) return result;
-            foreach (var slot in new[] { WeaponSlot.RightHand, WeaponSlot.LeftHand })
+            foreach (var slot in new[] { WeaponSlot.RightHand, WeaponSlot.LeftHand, WeaponSlot.Backpack })
                 if (selected.Combat.TryGetAttack(slot, out var stats, out _) &&
                     (!type.HasValue || stats.Type == type.Value) && stats.Range > 0 && stats.MinDamage > 0) result.Add(slot);
             return result;
         }
-        private void ClearWeaponSelection() { SelectedWeaponSlot = null; IsWeaponMenuOpen = false; ClearOverwatchSelection(); }
+        private void ClearWeaponSelection() { SelectedWeaponSlot = null; IsWeaponMenuOpen = false; ClearOverwatchSelection(); ClearIndirectAim(); ClearCoverAim(); LastIndirectAttackResult = default; LastCoverAttackResult = default; }
         public bool IsReloadWeaponMenuOpen => ActionMode == UnitActionMode.ReloadWeapon;
-        public IReadOnlyList<WeaponSlot> GetReloadWeaponSlots() => GetAvailableWeaponSlots(AttackType.Ranged);
+        public IReadOnlyList<WeaponSlot> GetReloadWeaponSlots()
+        {
+            var result = new List<WeaponSlot>(2);
+            foreach (var slot in GetAvailableWeaponSlots(AttackType.Ranged))
+                if (slot != WeaponSlot.Backpack) result.Add(slot);
+            return result;
+        }
         public bool CanReloadWeapon(WeaponSlot slot) => CanChooseAction && combat &&
             combat.CanReloadWithWeapon(selected, slot, out _);
         public bool CanOpenReloadMenu
@@ -80,7 +88,13 @@ namespace MechaXCOM
         public FacingDirection SelectedOverwatchFacing { get; private set; }
         private WeaponData preparedOverwatchWeapon;
         private OverwatchSystem Overwatch => turns ? turns.Overwatch : null;
-        public IReadOnlyList<WeaponSlot> GetOverwatchWeaponSlots() => GetAvailableWeaponSlots(AttackType.Ranged);
+        public IReadOnlyList<WeaponSlot> GetOverwatchWeaponSlots()
+        {
+            var result = new List<WeaponSlot>();
+            foreach (var slot in GetAvailableWeaponSlots(AttackType.Ranged))
+                if (selected.Combat.TryGetAttack(slot, out var attack, out _) && !attack.Weapon.IsIndirect) result.Add(slot);
+            return result;
+        }
         public bool CanBeginOverwatch(WeaponSlot slot) => CanChooseAction && Overwatch && Overwatch.CanBegin(selected, slot);
         public bool CanOpenOverwatchMenu
         {
@@ -207,6 +221,7 @@ namespace MechaXCOM
             this.combat = combat; this.turns = turns;
             visibility = turns ? turns.Visibility : null;
             if (isActiveAndEnabled && visibility) visibility.Changed += HandleVisibilityChanged;
+            if (isActiveAndEnabled && combat) combat.TerrainChanged += HandleBattleTerrainChanged;
             HandleVisibilityChanged();
             observedTurn = turns ? turns.TurnNumber : 0;
             observedTeam = turns ? turns.ActiveTeam : UnitTeam.Player;
@@ -224,6 +239,8 @@ namespace MechaXCOM
             bodyTargetUI.Initialize(this);
             actionUI = GetComponent<UnitActionUI>() ?? gameObject.AddComponent<UnitActionUI>();
             actionUI.Initialize(this, battleCamera);
+            indirectUI = GetComponent<IndirectTargetUI>() ?? gameObject.AddComponent<IndirectTargetUI>(); indirectUI.Initialize(this);
+            coverUI = GetComponent<CoverTargetUI>() ?? gameObject.AddComponent<CoverTargetUI>(); coverUI.Initialize(this);
             if (!battleCamera || !grid || !visualizer || !debugUI)
                 Debug.LogWarning($"{name}: input requires Camera, GridManager, GridVisualizer and BattleDebugUI.", this);
         }
@@ -289,6 +306,7 @@ namespace MechaXCOM
                 target = null; SelectedBodyPart = TargetBodyPart.Whole;
                 LastAttackResult = default; InputMessage = null;
             }
+            if (!ReferenceEquals(coverTarget, null) && !TargetCover) ClearCoverAim();
             if (turns && (observedTurn != turns.TurnNumber || observedTeam != turns.ActiveTeam))
             {
                 observedTurn = turns.TurnNumber; observedTeam = turns.ActiveTeam;
@@ -331,6 +349,10 @@ namespace MechaXCOM
             }
             if (Busy) { ResetClickSequence(); return; }
             var point = Mouse.current.position.ReadValue();
+            if (coverUI && coverUI.ContainsScreenPoint(point))
+            { ResetClickSequence(); coverUI.HandleScreenClick(point); return; }
+            if (indirectUI && indirectUI.ContainsScreenPoint(point))
+            { ResetClickSequence(); indirectUI.HandleScreenClick(point); return; }
             if (bodyTargetUI && bodyTargetUI.ContainsScreenPoint(point))
             {
                 ResetClickSequence(); bodyTargetUI.HandleScreenClick(point); return;
@@ -341,6 +363,13 @@ namespace MechaXCOM
             }
             if (debugUI.ContainsScreenPoint(point)) { ResetClickSequence(); return; }
             var ray = battleCamera.ScreenPointToRay(point);
+            if (IsIndirectAttackSelected)
+            {
+                ResetClickSequence(); var ground = new Plane(Vector3.up, grid.transform.position);
+                if (ground.Raycast(ray, out var t) && grid.TryWorldToGrid(ray.GetPoint(t), out var center)) TrySelectImpactCell(center);
+                else { ClearIndirectAim(); InputMessage = "맵 안의 공격 좌표를 선택하세요."; RefreshRange(); }
+                return;
+            }
             if (Physics.Raycast(ray, out var hit, 1000f))
             {
                 var unit = hit.collider.GetComponentInParent<BattleUnit>();
@@ -360,7 +389,9 @@ namespace MechaXCOM
                     else ResetClickSequence();
                     return;
                 }
-                if (hit.collider.GetComponentInParent<CoverObject>() ||
+                var hitCover = hit.collider.GetComponentInParent<CoverObject>();
+                if (hitCover && IsCoverAttackSelected) { ResetClickSequence(); TrySelectCover(hitCover); return; }
+                if (hitCover ||
                     hit.collider.GetComponentInParent<GridObstacle>()) { ResetClickSequence(); return; }
             }
             ResetClickSequence();
@@ -370,7 +401,7 @@ namespace MechaXCOM
             {
                 if (ActionMode == UnitActionMode.Move) TryMoveSelected(position);
                 else if (ActionMode == UnitActionMode.Menu) ClearSelection();
-                else target = null;
+                else { target = null; ClearCoverAim(); }
             }
             else
                 ClearSelection();
@@ -418,6 +449,7 @@ namespace MechaXCOM
         public bool BeginAttack(AttackType type = AttackType.Ranged)
         {
             if (!CanBeginAttackType(type)) return false;
+            ClearCoverAim();
             ClearOverwatchSelection();
             var slots = GetAvailableWeaponSlots(type);
             if (slots.Count == 1) return BeginWeaponAttack(slots[0]);
@@ -442,14 +474,17 @@ namespace MechaXCOM
         }
         public bool TrySelectTarget(BattleUnit unit)
         {
+            if (IsIndirectAttackSelected) return false;
             if (!selected) { InputMessage = "Select the player first."; return false; }
             if (ActionMode != UnitActionMode.Attack || !SelectedWeaponSlot.HasValue || !isActiveAndEnabled || !PlayerActionsAllowed || Busy || !combat || !IsTargetSelectable(unit)) return false;
             if (target != unit) SelectedBodyPart = TargetBodyPart.Whole;
+            ClearCoverAim();
             target = unit; InputMessage = null;
             return true;
         }
         public bool TrySelectBodyPart(TargetBodyPart part)
         {
+            if (IsIndirectAttackSelected) return false;
             if (!CanChooseAction || ActionMode != UnitActionMode.Attack || SelectedAttackType != AttackType.Ranged ||
                 !TargetUnit || !System.Enum.IsDefined(typeof(TargetBodyPart), part)) return false;
             SelectedBodyPart = part; InputMessage = null;
@@ -501,7 +536,11 @@ namespace MechaXCOM
             if (ActionMode == UnitActionMode.Move && CanBeginMove)
                 visualizer.ShowReachableCells(Pathfinder.GetReachableCells(grid, selected));
             else if (ActionMode == UnitActionMode.Attack && CanBeginAttack)
+            {
                 visualizer.ShowAttackCells(combat.GetWeaponRangeCells(selected, SelectedWeaponSlot.Value));
+                if (IsIndirectAttackSelected && SelectedImpactCell.HasValue)
+                    visualizer.ShowBlastCells(combat.GetIndirectPreviewCells(selected, SelectedImpactCell.Value, SelectedWeaponSlot.Value));
+            }
             else if (ActionMode == UnitActionMode.OverwatchFacing && CanConfirmOverwatch)
                 visualizer.ShowOverwatchCells(Overwatch.GetCoverageCells(selected, SelectedOverwatchSlot.Value, SelectedOverwatchFacing));
             else visualizer.ClearReachableCells();
@@ -540,11 +579,13 @@ namespace MechaXCOM
         private void UnsubscribeVisibility()
         {
             if (visibility) visibility.Changed -= HandleVisibilityChanged;
+            if (combat) combat.TerrainChanged -= HandleBattleTerrainChanged;
         }
         private void OnEnable()
         {
             if (overwatchDecision) overwatchDecision.RefreshRegistration();
             if (visibility) visibility.Changed += HandleVisibilityChanged;
+            if (combat) combat.TerrainChanged += HandleBattleTerrainChanged;
             HandleVisibilityChanged();
         }
         private void OnDestroy() => UnsubscribeVisibility();

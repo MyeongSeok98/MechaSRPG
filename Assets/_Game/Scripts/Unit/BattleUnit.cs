@@ -10,10 +10,29 @@ namespace MechaXCOM
         [SerializeField, InspectorName("파일럿 데이터")] private CharacterData pilotData;
         public CharacterData PilotData => pilotData;
         public int PilotTechnique { get; private set; }
+        public int PilotShooting { get; private set; }
+        public int PilotMelee { get; private set; }
+        public int PilotEvasion { get; private set; }
         public MechaData MechaData => mechaData;
         public ArmorType ArmorType { get; private set; }
+        public int BeamDamageTakenPercent { get; private set; } = 100;
+        public int BallisticDamageTakenPercent { get; private set; } = 100;
+        // Final damage lookup: future equipment reductions belong here, not on shared MechaData.
+        public float GetDamageTakenMultiplier(AttackType type, RangedWeaponCategory category) =>
+            CombatMath.CalculateDamageTakenMultiplier(type, category, BeamDamageTakenPercent, BallisticDamageTakenPercent);
         public int MechaAccuracy { get; private set; }
         public int MechaEvasion { get; private set; }
+        public float BaseMovementCellsPerAP { get; private set; } = 1f;
+        internal bool UsesMechaMovement { get; private set; }
+        // Future equipment modifies the unit's effective rate here, not shared MechaData.
+        public float GetMovementCellsPerAP()
+        {
+            float rate = BaseMovementCellsPerAP;
+            if (!UsesMechaMovement || !IsInitialized || !Health) return rate;
+            bool left = Health.GetCurrentHP(TargetBodyPart.LeftLeg) == 0;
+            bool right = Health.GetCurrentHP(TargetBodyPart.RightLeg) == 0;
+            return left && right ? 0 : left || right ? rate * .5f : rate;
+        }
         [SerializeField, Min(0)] private int movementRange = 5;
         [SerializeField] private Vector2Int startGridPosition = new Vector2Int(1, 1);
         [SerializeField, Min(0)] private float heightOffset = 1f;
@@ -47,6 +66,8 @@ namespace MechaXCOM
         {
             get
             {
+                if (UsesMechaMovement && ActionPoints)
+                    return (int)System.Math.Min(int.MaxValue, System.Math.Floor(ActionPoints.MaxPoints * MovementCostLedger.RateValue(GetMovementCellsPerAP())));
                 if (!IsInitialized || !Health) return movementRange;
                 bool left = Health.GetCurrentHP(TargetBodyPart.LeftLeg) == 0;
                 bool right = Health.GetCurrentHP(TargetBodyPart.RightLeg) == 0;
@@ -68,7 +89,8 @@ namespace MechaXCOM
         public UnitOverwatch Overwatch { get; private set; }
         public UnitTeam Team => team;
         public bool IsAlive => IsInitialized && Health && Health.IsPresent;
-        public int AvailableMovementRange => IsAlive && Health.CanFight && ActionPoints ? Mathf.Min(DamagedMovementRange, ActionPoints.CurrentPoints) : 0;
+        public int AvailableMovementRange => IsAlive && Health.CanFight && ActionPoints && Movement
+            ? Movement.GetAffordableMovementCells() : 0;
         public void ConfigureTeam(UnitTeam team)
         {
             this.team = team;
@@ -83,6 +105,12 @@ namespace MechaXCOM
             if (mechaData && !mechaData.IsValid(out var reason))
             {
                 Debug.LogWarning($"{name}: invalid MechaData: {reason}", this);
+                return false;
+            }
+            var loadout = GetComponent<UnitWeaponLoadout>();
+            if (loadout && !loadout.IsWithinWeightLimit(out var weightReason))
+            {
+                Debug.LogWarning($"{name}: {weightReason}", this);
                 return false;
             }
             Movement = GetComponent<UnitMovement>();
@@ -105,11 +133,19 @@ namespace MechaXCOM
                 for (int part = (int)TargetBodyPart.Torso; part <= (int)TargetBodyPart.RightLeg; part++)
                     Health.ConfigurePartHP((TargetBodyPart)part, mechaData.GetMaxHP((TargetBodyPart)part));
                 ActionPoints.Configure(mechaData.BaseAP);
+                Vision.Configure(mechaData.DetectionRange);
             }
             MechaAccuracy = mechaData ? mechaData.Accuracy : 0;
             MechaEvasion = mechaData ? mechaData.Evasion : 0;
             ArmorType = mechaData ? mechaData.ArmorType : ArmorType.Standard;
+            BeamDamageTakenPercent = mechaData ? mechaData.BeamDamageTakenPercent : 100;
+            BallisticDamageTakenPercent = mechaData ? mechaData.BallisticDamageTakenPercent : 100;
+            UsesMechaMovement = mechaData != null;
+            BaseMovementCellsPerAP = mechaData ? mechaData.MovementCellsPerAP : 1f;
             PilotTechnique = pilotData ? Mathf.Clamp(pilotData.Technique, 0, CombatMath.MaxPilotTechnique) : 0;
+            PilotShooting = pilotData ? Mathf.Clamp(pilotData.Shooting, 0, CombatMath.MaxPilotCombatStat) : 0;
+            PilotMelee = pilotData ? Mathf.Clamp(pilotData.Melee, 0, CombatMath.MaxPilotCombatStat) : 0;
+            PilotEvasion = pilotData ? Mathf.Clamp(pilotData.Evasion, 0, CombatMath.MaxPilotCombatStat) : 0;
             Health.Initialize();
             ActionPoints.ResetForTurn();
             Health.StateChanged += HandleStateChanged;
@@ -161,7 +197,8 @@ namespace MechaXCOM
                 if (loadout) loadout.ResolveArmDamage(Health);
                 VisibilityChanged?.Invoke();
             }
-            if ((part == TargetBodyPart.LeftLeg || part == TargetBodyPart.RightLeg) && Movement && Movement.IsMoving && !Movement.IsResolvingStep)
+            if ((part == TargetBodyPart.LeftLeg || part == TargetBodyPart.RightLeg) && Movement && Movement.IsMoving && !Movement.IsResolvingStep &&
+                (!UsesMechaMovement || GetMovementCellsPerAP() <= 0))
                 Movement.CancelMove();
         }
         public void Configure(Vector2Int start, int movementRange)

@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0d06b3f74eb9f24d99d4cf62a3c7a2d, type: 3}
+  m_Name: CurvedExplosiveSample
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.WeaponData
+  displayName: CurvedExplosiveSample
+  description: "\uACE1\uC0AC \uBB34\uAE30 \uC81C\uC791 "
+  attackType: 0
+  rangedCategory: 2
+  meleeCategory: 0
+  traits: 00000000
+  minDamage: 500
+  maxDamage: 800
+  baseHitChance: 60
+  range: 7
+  apCost: 3
+  magazineCapacity: 6
+  spareMagazineCount: 2
+  reloadAPCost: 3
+  weightTonnes: 0
+  magazineWeightTonnes: 0
+  gripRequirement: 1
+  twoHandHitMultiplier: 1.1
+  distanceBands: []
+  additionalHitPartCount: 0
+  additionalDamageMinRatio: 0.05
+  additionalDamageMaxRatio: 0.15
+  additionalDamageStepPercent: 5
+  rangedAttackMode: 1
+  blastRadius: 3
+  minHitParts: 1
+  maxHitParts: 3

@@ -87,6 +87,7 @@ namespace MechaXCOM.Tests
                 savedSceneBytes = File.ReadAllBytes(loadedScenePath);
                 EditorSceneManager.LoadSceneInPlayMode(loadedScenePath, new LoadSceneParameters(LoadSceneMode.Single));
                 yield return null; yield return null;
+                Assert.That(Object.FindObjectsByType<CombatFeedbackPresenter>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
                 foreach (var loaded in Object.FindObjectsByType<BattleUnit>(FindObjectsSortMode.None))
                 {
                     var loadout = loaded.GetComponent<UnitWeaponLoadout>();
@@ -137,6 +138,8 @@ namespace MechaXCOM.Tests
             yield return FinishMove(); SelectAttackTarget(enemy); combat.SetRollSource(() => 0);
             Assert.That(input.TryAttackSelected().Hit, Is.True);
             Assert.That(unit.ActionPoints.CurrentPoints, Is.EqualTo(1));
+            Assert.That(input.TryEndTurn(), Is.False, "Attack feedback must finish before ending the turn.");
+            yield return FinishFeedback();
             Assert.That(input.TryEndTurn(), Is.True); yield return FinishEnemyTurn();
             Assert.That(turns.TurnNumber, Is.EqualTo(2));
             Assert.That(players.All(p => p.ActionPoints.CurrentPoints == 5), Is.True);
@@ -166,6 +169,12 @@ namespace MechaXCOM.Tests
             while (!turns.IsPlayerTurn && !turns.IsBattleOver && Time.realtimeSinceStartup < deadline) yield return null;
             Assert.That(turns.IsPlayerTurn || turns.IsBattleOver, Is.True, "Enemy phase timed out.");
             yield return null;
+        }
+        private IEnumerator FinishFeedback()
+        {
+            float deadline = Time.realtimeSinceStartup + 2;
+            while (turns.IsPresentingAttack && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(turns.IsPresentingAttack, Is.False, "Attack feedback timed out.");
         }
         private IEnumerator FinishMove()
         {
@@ -303,6 +312,8 @@ namespace MechaXCOM.Tests
             input.SelectUnit(unit); SelectAttackTarget(enemy); combat.SetRollSource(() => 99);
             Assert.That(input.TryAttackSelected().Hit, Is.False);
             Assert.That(unit.ActionPoints.CurrentPoints, Is.EqualTo(2));
+            Assert.That(MoveSelected(new Vector2Int(1, 3)), Is.False, "Moving must wait for MISS feedback.");
+            yield return FinishFeedback();
             Assert.That(MoveSelected(new Vector2Int(1, 3)), Is.True);
             yield return FinishMove(); Assert.That(unit.ActionPoints.CurrentPoints, Is.Zero);
             Assert.That(enemy.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(20));
@@ -314,6 +325,8 @@ namespace MechaXCOM.Tests
             for (int i = 0; i < 4; i++)
             {
                 SelectAttackTarget(enemy); Assert.That(input.TryAttackSelected().Hit, Is.True);
+                Assert.That(turns.IsPresentingAttack, Is.True);
+                yield return FinishFeedback();
                 if (i < 3) { Assert.That(input.TryEndTurn(), Is.True); yield return FinishEnemyTurn(); }
             }
             Assert.That(input.LastAttackResult.TargetDestroyed, Is.True);

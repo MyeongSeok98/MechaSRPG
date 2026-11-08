@@ -12,6 +12,8 @@ namespace MechaXCOM
         public string WeaponInfoText => Preview.WeaponName ?? string.Empty;
         public string AttackInfoText => AttackPreviewText.DamageAndAP(Preview);
         public string AmmoInfoText => WeaponAmmoText.Summary(Preview);
+        public string AdditionalDamageInfoText => AttackPreviewText.AdditionalDamage(Preview);
+        private float AdditionalRow => Preview.AdditionalHitPartCount > 0 ? 22 : 0;
         public string ContextInfoText => !Target ? string.Empty : IsReaction
             ? $"OVERWATCH: {overwatch.CurrentDecision.Value.Watcher.name}\n{Target.name} / {Target.Health.State.ToString().ToUpperInvariant()}"
             : $"{Target.name} / {Target.Health.State.ToString().ToUpperInvariant()}";
@@ -29,13 +31,13 @@ namespace MechaXCOM
         internal bool IsBoundToOverwatch(OverwatchDecisionController controller) => overwatch == controller;
         private float Scale => Mathf.Clamp(Mathf.Min(Screen.width / 1280f, Screen.height / 720f), .25f, 1f);
         public bool IsVisible => isActiveAndEnabled && (IsReaction || (input && input.CanChooseAction &&
-            input.ActionMode == UnitActionMode.Attack && input.SelectedAttackType == AttackType.Ranged && input.TargetUnit));
+            input.ActionMode == UnitActionMode.Attack && !input.IsIndirectAttackSelected && input.SelectedAttackType == AttackType.Ranged && input.TargetUnit));
         public Texture2D CurrentTexture => art ? art.GetImage(IsReaction ? overwatch.SelectedPart : input ? input.SelectedBodyPart : TargetBodyPart.Whole) : null;
-        public Rect PanelRect => new Rect(Screen.width - 316 * Scale, (Screen.height - 650 * Scale) / 2, 300 * Scale, 650 * Scale);
+        public Rect PanelRect => new Rect(Screen.width - 316 * Scale, (Screen.height - (650 + AdditionalRow) * Scale) / 2, 300 * Scale, (650 + AdditionalRow) * Scale);
         public Rect ImageRect => new Rect(PanelRect.x + 12 * Scale, PanelRect.y + 60 * Scale, 276 * Scale, 331 * Scale);
-        public Rect FireButtonRect => new Rect(PanelRect.x + 12 * Scale, PanelRect.y + 603 * Scale, (IsReaction ? 132 : 276) * Scale, 32 * Scale);
-        public Rect SkipButtonRect => IsReaction ? new Rect(PanelRect.x + 156 * Scale, PanelRect.y + 603 * Scale, 132 * Scale, 32 * Scale) : default;
-        private Rect WholeButtonRect => new Rect(PanelRect.x + 12 * Scale, PanelRect.y + 561 * Scale, 276 * Scale, 30 * Scale);
+        public Rect FireButtonRect => new Rect(PanelRect.x + 12 * Scale, PanelRect.y + (603 + AdditionalRow) * Scale, (IsReaction ? 132 : 276) * Scale, 32 * Scale);
+        public Rect SkipButtonRect => IsReaction ? new Rect(PanelRect.x + 156 * Scale, PanelRect.y + (603 + AdditionalRow) * Scale, 132 * Scale, 32 * Scale) : default;
+        private Rect WholeButtonRect => new Rect(PanelRect.x + 12 * Scale, PanelRect.y + (561 + AdditionalRow) * Scale, 276 * Scale, 30 * Scale);
         public string SelectedPartInfo
         {
             get
@@ -104,21 +106,23 @@ namespace MechaXCOM
             var panel = PanelRect;
             GUI.Box(panel, GUIContent.none);
             var header = new GUIStyle(label) { fontSize = Mathf.RoundToInt((IsReaction ? 12 : 14) * Scale) };
-            GUI.Label(new Rect(panel.x + 6 * Scale, panel.y + 2 * Scale, panel.width - 12 * Scale, 30 * Scale), ContextInfoText, header);
-            GUI.Label(new Rect(panel.x + 12 * Scale, panel.y + 32 * Scale, panel.width - 24 * Scale, 24 * Scale), WeaponInfoText, label);
+            ResourceTypography.Label(new Rect(panel.x + 6 * Scale, panel.y + 2 * Scale, panel.width - 12 * Scale, 30 * Scale), ContextInfoText, header);
+            ResourceTypography.Label(new Rect(panel.x + 12 * Scale, panel.y + 32 * Scale, panel.width - 24 * Scale, 24 * Scale), WeaponInfoText, label);
             if (CurrentTexture) GUI.DrawTexture(ImageRect, CurrentTexture, ScaleMode.StretchToFill, true);
-            else GUI.Label(ImageRect, "Target diagram unavailable", label);
+            else ResourceTypography.Label(ImageRect, "Target diagram unavailable", label);
             var preview = Preview;
-            GUI.Label(new Rect(panel.x, panel.y + 393 * Scale, panel.width, 44 * Scale),
+            ResourceTypography.Label(new Rect(panel.x, panel.y + 393 * Scale, panel.width, 44 * Scale),
                 SelectedPartInfo, label);
-            GUI.Label(new Rect(panel.x, panel.y + 437 * Scale, panel.width, 22 * Scale),
+            ResourceTypography.Label(new Rect(panel.x, panel.y + 437 * Scale, panel.width, 22 * Scale),
                 AttackInfoText, label);
-            GUI.Label(new Rect(panel.x, panel.y + 459 * Scale, panel.width, 22 * Scale), AmmoInfoText, label);
+            if (AdditionalRow > 0)
+                ResourceTypography.Label(new Rect(panel.x, panel.y + 459 * Scale, panel.width, 22 * Scale), AdditionalDamageInfoText, label);
+            ResourceTypography.Label(new Rect(panel.x, panel.y + (459 + AdditionalRow) * Scale, panel.width, 22 * Scale), AmmoInfoText, label);
             for (int i = 0; i < 7; i++)
             {
                 var part = (TargetBodyPart)(i + 1);
-                GUI.Label(new Rect(panel.x + (6 + (i % 2) * 145) * Scale,
-                    panel.y + (483 + (i / 2) * 18) * Scale, 145 * Scale, 18 * Scale), GetPartHPText(part), label);
+                ResourceTypography.Label(new Rect(panel.x + (6 + (i % 2) * 145) * Scale,
+                    panel.y + (483 + AdditionalRow + (i / 2) * 18) * Scale, 145 * Scale, 18 * Scale), GetPartHPText(part), label);
             }
             GUI.Button(WholeButtonRect, "기본 조준 (Body)", button);
             bool oldEnabled = GUI.enabled; GUI.enabled = oldEnabled && preview.CanAttack;
@@ -131,3 +135,4 @@ namespace MechaXCOM
         private void OnEnable() { if (overwatch) overwatch.RefreshRegistration(); }
     }
 }
+

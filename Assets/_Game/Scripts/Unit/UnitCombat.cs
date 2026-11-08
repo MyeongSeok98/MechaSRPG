@@ -23,13 +23,14 @@ namespace MechaXCOM
             if (loadout)
             {
                 if (!loadout.IsValid(out reason)) return false;
-                if (slot != WeaponSlot.RightHand && slot != WeaponSlot.LeftHand)
-                { reason = "장착 설정에서는 손 슬롯을 선택해야 합니다."; return false; }
-                var weapon = slot == WeaponSlot.RightHand ? loadout.RightWeapon : loadout.LeftWeapon;
-                var grip = slot == WeaponSlot.RightHand ? loadout.RightGrip : loadout.LeftGrip;
-                if (!weapon) { reason = "선택한 손에 무기가 없습니다."; return false; }
+                if (slot != WeaponSlot.RightHand && slot != WeaponSlot.LeftHand && slot != WeaponSlot.Backpack)
+                { reason = "올바른 무장 슬롯을 선택해야 합니다."; return false; }
+                bool backpack = slot == WeaponSlot.Backpack;
+                var weapon = loadout.GetWeapon(slot);
+                var grip = backpack ? GripMode.OneHand : slot == WeaponSlot.RightHand ? loadout.RightGrip : loadout.LeftGrip;
+                if (!weapon) { reason = backpack ? "백팩에 포함 무장이 없습니다." : "선택한 손에 무기가 없습니다."; return false; }
                 var unit = GetComponent<BattleUnit>();
-                if (unit && unit.IsInitialized && unit.Health)
+                if (!backpack && unit && unit.IsInitialized && unit.Health)
                 {
                     bool leftDestroyed = unit.Health.GetCurrentHP(TargetBodyPart.LeftArm) == 0;
                     bool rightDestroyed = unit.Health.GetCurrentHP(TargetBodyPart.RightArm) == 0;
@@ -43,7 +44,7 @@ namespace MechaXCOM
                     Type = weapon.AttackType, Slot = slot, DisplayName = weapon.DisplayName, Weapon = weapon,
                     MinDamage = weapon.MinDamage, MaxDamage = weapon.MaxDamage, BaseHitChance = weapon.BaseHitChance,
                     Range = weapon.Range, APCost = weapon.APCost,
-                    GripMultiplier = weapon.GripRequirement == GripRequirement.Either && grip == GripMode.TwoHands
+                    GripMultiplier = !backpack && weapon.GripRequirement == GripRequirement.Either && grip == GripMode.TwoHands
                         ? weapon.TwoHandHitMultiplier : 1f
                 };
                 return true;
@@ -53,9 +54,9 @@ namespace MechaXCOM
         }
         public IReadOnlyList<WeaponSlot> GetAttackSlots(AttackType type)
         {
-            var slots = new List<WeaponSlot>(2);
+            var slots = new List<WeaponSlot>(3);
             if (type != AttackType.Ranged && type != AttackType.Melee) return slots;
-            foreach (var slot in new[] { WeaponSlot.RightHand, WeaponSlot.LeftHand })
+            foreach (var slot in new[] { WeaponSlot.RightHand, WeaponSlot.LeftHand, WeaponSlot.Backpack })
                 if (TryGetAttack(slot, out var attack, out _) && attack.Type == type) slots.Add(slot);
             return slots;
         }

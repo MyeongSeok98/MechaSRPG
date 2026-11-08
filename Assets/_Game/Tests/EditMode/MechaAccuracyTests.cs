@@ -28,7 +28,7 @@ namespace MechaXCOM.Tests
         public void FormulaClampsRatingsToAllowedRange(int accuracy, int evasion, float expected)
             => Assert.That(Multiplier(accuracy, evasion), Is.EqualTo(expected).Within(.00001f));
 
-        [TestCase(0, 0, 80)] [TestCase(50, 0, 100)] [TestCase(0, 50, 48)] [TestCase(50, 50, 80)]
+        [TestCase(0, 0, 80)] [TestCase(50, 0, 99)] [TestCase(0, 50, 48)] [TestCase(50, 50, 80)]
         public void RangedPreviewAppliesAttackerAccuracyAndTargetEvasion(int accuracy, int evasion, int expected)
         {
             battle = new MechaAccuracyTestBattle(playerAccuracy: accuracy, enemyEvasion: evasion);
@@ -38,7 +38,7 @@ namespace MechaXCOM.Tests
             var field = typeof(AttackPreview).GetField("MechaMultiplier"); Assert.That(field, Is.Not.Null);
             Assert.That((float)field.GetValue(preview), Is.EqualTo(Multiplier(accuracy, evasion)).Within(.00001f));
         }
-        [TestCase(0, 50, 57)] [TestCase(50, 0, 100)]
+        [TestCase(0, 50, 57)] [TestCase(50, 0, 99)]
         public void MeleeAlsoUsesMechaRatings(int accuracy, int evasion, int expected)
         {
             battle = new MechaAccuracyTestBattle(playerAccuracy: accuracy, enemyEvasion: evasion);

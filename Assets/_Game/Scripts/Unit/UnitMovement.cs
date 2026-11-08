@@ -14,6 +14,25 @@ namespace MechaXCOM
         private BattleUnit unit;
         private Coroutine routine;
         private OverwatchSystem overwatch;
+        private readonly MovementCostLedger movementCosts = new MovementCostLedger();
+        public double PrepaidMovementAP => movementCosts.PrepaidAP;
+        public long PaidMovementAP => movementCosts.PaidAP;
+        internal void ResetForTurn() => movementCosts.ResetForTurn();
+        public int GetMovementAPCost(int cells)
+        {
+            double cost = unit ? movementCosts.GetAdditionalAPCost(cells, unit.GetMovementCellsPerAP()) : double.PositiveInfinity;
+            return cost >= int.MaxValue ? int.MaxValue : (int)cost;
+        }
+        public bool CanAffordMovement(int cells, int reservedAP = 0) => unit && unit.ActionPoints &&
+            reservedAP >= 0 && reservedAP <= unit.ActionPoints.CurrentPoints &&
+            (unit.UsesMechaMovement || cells <= unit.DamagedMovementRange) &&
+            movementCosts.CanAfford(cells, unit.GetMovementCellsPerAP(), unit.ActionPoints.CurrentPoints - reservedAP);
+        public int GetAffordableMovementCells(int reservedAP = 0)
+        {
+            if (!unit || !unit.ActionPoints || reservedAP < 0 || reservedAP > unit.ActionPoints.CurrentPoints) return 0;
+            int cells = movementCosts.GetAffordableCells(unit.GetMovementCellsPerAP(), unit.ActionPoints.CurrentPoints - reservedAP);
+            return unit.UsesMechaMovement ? cells : Mathf.Min(cells, unit.DamagedMovementRange);
+        }
         public bool IsMoving { get; private set; }
         internal bool IsResolvingStep { get; private set; }
         internal void ConfigureOverwatch(OverwatchSystem system) => overwatch = system;
@@ -66,14 +85,13 @@ namespace MechaXCOM
                     transform.position = Vector3.MoveTowards(transform.position, target, movementSpeed * Time.deltaTime);
                     yield return null;
                 }
-                if (!CanEnter(cell) || !grid.TryMoveUnit(unit, cell.Position))
+                if (!CanEnter(cell) || !TryPayForStep() || !grid.TryMoveUnit(unit, cell.Position))
                 {
                     Finish(true);
                     yield break;
                 }
                 transform.position = target;
                 unit.Facing = stepFacing;
-                unit.ActionPoints.TrySpend(1);
                 unit.Mobility.RecordCellMoved();
                 if (overwatch)
                 {
@@ -89,10 +107,19 @@ namespace MechaXCOM
             unit.HasPendingFacing = unit.RequiresArrivalFacing;
             Finish(false);
         }
-        private bool CanEnter(GridCell cell) => grid && unit && unit.CanContinueMovement &&
-            unit.Mobility && unit.Mobility.isActiveAndEnabled && unit.Mobility.MovedCells < unit.DamagedMovementRange &&
-            unit.ActionPoints && unit.ActionPoints.isActiveAndEnabled && unit.ActionPoints.CanSpend(1) &&
+        private bool CanEnter(GridCell cell) => grid && unit && unit.IsRegisteredOnGrid && unit.CanContinueMovement &&
+            grid.TryGetCell(cell.Position, out var currentCell) && ReferenceEquals(currentCell, cell) &&
+            unit.Mobility && unit.Mobility.isActiveAndEnabled &&
+            (unit.UsesMechaMovement || unit.Mobility.MovedCells < unit.DamagedMovementRange) &&
+            unit.ActionPoints && unit.ActionPoints.isActiveAndEnabled && CanAffordMovement(1) &&
             cell.Walkable && (!cell.Occupied || cell.OccupyingUnit == unit);
+        private bool TryPayForStep()
+        {
+            // No callbacks between ledger commitment and AP payment. Both precede
+            // Grid's position notification, which may trigger visibility/damage logic.
+            if (!movementCosts.TryCommitStep(unit.GetMovementCellsPerAP(), unit.ActionPoints.CurrentPoints, out int cost)) return false;
+            return unit.ActionPoints.TrySpend(cost);
+        }
 
         private void Finish(bool restorePosition)
         {

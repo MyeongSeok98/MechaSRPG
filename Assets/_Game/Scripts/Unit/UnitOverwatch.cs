@@ -36,7 +36,7 @@ namespace MechaXCOM
             Subscribe();
             Slot = slot; Weapon = weapon; Facing = facing;
             origin = unit.CurrentGridPosition; team = unit.Team;
-            grip = slot == WeaponSlot.LeftHand ? loadout.LeftGrip : loadout.RightGrip;
+            grip = CurrentGrip(slot);
             processedTargets.Clear();
             active = true;
         }
@@ -63,10 +63,12 @@ namespace MechaXCOM
                 !unit.ActionPoints || !unit.ActionPoints.isActiveAndEnabled || !loadout ||
                 !unit.Combat.TryGetAttack(Slot, out var attack, out _) ||
                 !unit.Ammo || !unit.Ammo.CanFire(Slot) ||
-                attack.Type != AttackType.Ranged || attack.Weapon != Weapon ||
-                (Slot == WeaponSlot.LeftHand ? loadout.LeftGrip : loadout.RightGrip) != grip)
+                attack.Type != AttackType.Ranged || attack.Weapon.IsIndirect || attack.Weapon != Weapon ||
+                CurrentGrip(Slot) != grip)
                 Cancel();
         }
+        private GripMode CurrentGrip(WeaponSlot slot) => slot == WeaponSlot.Backpack ? GripMode.OneHand :
+            slot == WeaponSlot.LeftHand ? loadout.LeftGrip : loadout.RightGrip;
         private void Subscribe()
         {
             if (subscribed || !isActiveAndEnabled || !unit) return;

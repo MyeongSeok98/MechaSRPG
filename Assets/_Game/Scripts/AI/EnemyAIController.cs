@@ -30,7 +30,7 @@ namespace MechaXCOM
                 WeaponSlot attackSlot = default;
                 if (FindImmediateTarget(actor, units, slots, out target, out attackSlot))
                 {
-                    combat.TryAttackWithWeapon(actor, target, attackSlot);
+                    TryExecuteAttack(actor, target, attackSlot);
                     yield break;
                 }
                 bool detectedTarget = false;
@@ -41,7 +41,7 @@ namespace MechaXCOM
                     if (!actor.Ammo || actor.Ammo.GetStatus(slot).Loaded != 0 || !combat.TryReloadWithWeapon(actor, slot)) continue;
                     slots = GetUsableSlots(actor);
                     if (FindImmediateTarget(actor, units, slots, out target, out attackSlot))
-                    { combat.TryAttackWithWeapon(actor, target, attackSlot); yield break; }
+                    { TryExecuteAttack(actor, target, attackSlot); yield break; }
                     break;
                 }
                 if (slots.Count == 0) yield break;
@@ -59,10 +59,12 @@ namespace MechaXCOM
                         if (!actor.ActionPoints.CanSpend(stats.APCost) &&
                             CombatMath.IsInRange(actor.CurrentGridPosition, unit.CurrentGridPosition, stats.Range))
                         { unaffordableInRange = true; continue; }
-                        var path = Pathfinder.FindPathToRange(grid, actor, unit.CurrentGridPosition, stats.Range, stats.Type);
+                        System.Func<Vector2Int, bool> canAttackFrom = null;
+                        if (stats.Weapon.IsIndirect)
+                            canAttackFrom = from => combat.CanAimIndirectAt(from, unit.CurrentGridPosition, stats.Weapon, out _);
+                        var path = Pathfinder.FindPathToRange(grid, actor, unit.CurrentGridPosition, stats.Range, stats.Type, canAttackFrom);
                         if (path.Count == 0) continue;
-                        int attackBudget = Mathf.Min(actor.AvailableMovementRange, actor.ActionPoints.CurrentPoints - stats.APCost);
-                        if (path.Count <= attackBudget && (attackPath == null || path.Count < attackPath.Count))
+                        if (actor.Movement.CanAffordMovement(path.Count, stats.APCost) && (attackPath == null || path.Count < attackPath.Count))
                         { attackPath = path; attackTarget = unit; plannedSlot = slot; }
                         if (approachPath == null || path.Count < approachPath.Count)
                         { approachPath = path; approachTarget = unit; }
@@ -91,9 +93,9 @@ namespace MechaXCOM
                 {
                     // Reaction damage may disable the planned hand or transfer an Either
                     // weapon to the surviving hand while the movement is waiting.
-                    if (!combat.TryAttackWithWeapon(actor, target, plannedSlot).WasExecuted &&
+                    if (!TryExecuteAttack(actor, target, plannedSlot) &&
                         TryImmediateSlot(actor, target, GetUsableSlots(actor), out var survivingSlot))
-                        combat.TryAttackWithWeapon(actor, target, survivingSlot);
+                        TryExecuteAttack(actor, target, survivingSlot);
                 }
             }
             finally
@@ -127,8 +129,28 @@ namespace MechaXCOM
         private bool TryImmediateSlot(BattleUnit actor, BattleUnit target, List<WeaponSlot> slots, out WeaponSlot chosen)
         {
             foreach (var slot in slots)
-                if (combat.GetWeaponPreview(actor, target, slot).CanAttack) { chosen = slot; return true; }
+                if (CanAttackTarget(actor, target, slot)) { chosen = slot; return true; }
             chosen = default; return false;
+        }
+        private bool CanAttackTarget(BattleUnit actor, BattleUnit target, WeaponSlot slot)
+        {
+            if (!actor.Combat.TryGetAttack(slot, out var attack, out _)) return false;
+            if (!attack.Weapon.IsIndirect) return combat.GetWeaponPreview(actor, target, slot).CanAttack;
+            var preview = combat.GetIndirectPreview(actor, target.CurrentGridPosition, slot);
+            if (!preview.CanAttack) return false;
+            bool containsTarget = false;
+            foreach (var unit in preview.VisibleTargets)
+            {
+                if (unit.Team == actor.Team) return false;
+                if (unit == target) containsTarget = true;
+            }
+            return containsTarget;
+        }
+        private bool TryExecuteAttack(BattleUnit actor, BattleUnit target, WeaponSlot slot)
+        {
+            if (!CanAttackTarget(actor, target, slot) || !actor.Combat.TryGetAttack(slot, out var attack, out _)) return false;
+            return attack.Weapon.IsIndirect ? combat.TryIndirectAttack(actor, target.CurrentGridPosition, slot).WasExecuted :
+                combat.TryAttackWithWeapon(actor, target, slot).WasExecuted;
         }
 
         private bool Registered(BattleUnit unit) => unit && unit.isActiveAndEnabled && unit.IsAlive &&

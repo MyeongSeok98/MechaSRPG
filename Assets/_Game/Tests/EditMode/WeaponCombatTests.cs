@@ -148,7 +148,7 @@ namespace MechaXCOM.Tests
         {
             Assert.That(CombatMath.CalculateAttackHitChance(80, 1, 1, 1, 1.1f, .8f), Is.EqualTo(70));
             Assert.That(CombatMath.CalculateAttackHitChance(80, .5f, .5f, .5f, 1.1f, .8f), Is.EqualTo(9));
-            Assert.That(CombatMath.CalculateAttackHitChance(100, 1, 1, 1, 1.2f, 1), Is.EqualTo(100));
+            Assert.That(CombatMath.CalculateAttackHitChance(100, 1, 1, 1, 1.2f, 1), Is.EqualTo(99));
             Bands(); loadout.Configure(null, GripMode.OneHand, rifle, GripMode.TwoHands);
             grid.TryMoveUnit(enemy, new Vector2Int(7, 1));
             for (int i = 0; i < 3; i++) enemy.Mobility.RecordCellMoved();
@@ -158,7 +158,7 @@ namespace MechaXCOM.Tests
         [Test] public void LargeFiniteGripAndZeroDistanceMultiplierRemainValid()
         {
             Assert.That(CombatMath.CalculateAttackHitChance(80, 1, 1, 1, float.MaxValue, 0), Is.Zero);
-            Assert.That(CombatMath.CalculateAttackHitChance(80, 1, 1, 1, float.MaxValue, float.MaxValue), Is.EqualTo(100));
+            Assert.That(CombatMath.CalculateAttackHitChance(80, 1, 1, 1, float.MaxValue, float.MaxValue), Is.EqualTo(99));
         }
         [Test] public void ExistingHeadCoverAndPartMultipliersStillApply()
         {

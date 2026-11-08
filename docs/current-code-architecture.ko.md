@@ -105,7 +105,7 @@ BattleSceneController는 전체 전투의 초기 연결을, BattleUnit은 개별
 | 경계 무기·방향·적별 처리 기록 | 유닛별 UnitOverwatch |
 | 경계 진입 AP 2·개인 감시 범위·반응 순서 | OverwatchSystem |
 | 반응 명중률 ×0.75·선택 부위 피해 | OverwatchSystem의 권한 검사 → CombatSystem 공통 계산·피해 처리 |
-| 탐지 거리 | UnitVision 자체 설정. 아직 MechaData 항목과 연결하지 않음 |
+| 탐지 거리 | MechaData 기본 탐지 거리 → BattleUnit 최초 초기화 → UnitVision → 기존 VisibilitySystem. 기본10칸,0은 반경0. MechaData가 없으면 기존 UnitVision 설정 유지. 추가부품 보정 없음 |
 | AP당 이동거리·기체 중량·장착 한도 | MechaData에 저장만 함. 이동 비용·중량 제한에 미적용 |
 | 데이터 없는 유닛 | 기존 HP·AP 컴포넌트 설정으로 초기화 |
 

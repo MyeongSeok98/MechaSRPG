@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -87,33 +88,56 @@ namespace MechaXCOM
         }
 
         public PartDamageResult ApplyDamage(TargetBodyPart part, int damage)
+            => ApplyDamageBatch(new[] { new PartDamage(part, damage) })[0];
+
+        public PartDamageResult[] ApplyDamageBatch(IReadOnlyList<PartDamage> hits)
         {
-            part = BodyTargetRules.Normalize(part);
-            var result = new PartDamageResult
+            if (hits == null || hits.Count == 0) return Array.Empty<PartDamageResult>();
+            var results = new PartDamageResult[hits.Count];
+            var before = State;
+            bool applied = false;
+            for (int i = 0; i < hits.Count; i++)
             {
-                Part = part, PartHPAfter = GetCurrentHP(part), StateBefore = State, StateAfter = State
-            };
-            if (!IsPresent || damage <= 0 || !IsValidPart(part)) return result;
+                var part = BodyTargetRules.Normalize(hits[i].Part);
+                var result = new PartDamageResult
+                { Part = part, PartHPAfter = GetCurrentHP(part), StateBefore = before, StateAfter = before };
+                if (IsPresent && hits[i].Damage > 0 && IsValidPart(part))
+                {
+                    int index = (int)part - 1;
+                    result.Applied = applied = true;
+                    result.DamageDealt = Math.Min(hits[i].Damage, currentHP[index]);
+                    currentHP[index] -= result.DamageDealt;
+                    result.PartHPAfter = currentHP[index];
+                }
+                results[i] = result;
+            }
+            if (!applied) return results;
 
-            int index = (int)part - 1;
-            result.Applied = true;
-            result.DamageDealt = Math.Min(damage, currentHP[index]);
-            currentHP[index] -= result.DamageDealt;
-            result.PartHPAfter = currentHP[index];
-
+            bool destructionChecked = false;
             if (GetCurrentHP(TargetBodyPart.Torso) == 0 || GetCurrentHP(TargetBodyPart.Cockpit) == 0 || MajorPartsDestroyed >= 4)
                 State = MechState.Destroyed;
             else if (State == MechState.Critical || MajorPartsDestroyed >= 3)
             {
-                result.DestructionChecked = true;
+                destructionChecked = true;
                 int roll = destructionRollSource != null ? destructionRollSource() : UnityEngine.Random.Range(0, 100);
                 State = roll < destructionChance ? MechState.Destroyed : MechState.Critical;
             }
 
-            result.StateAfter = State;
-            if (result.StateBefore != State) StateChanged?.Invoke();
-            if (result.DamageDealt > 0 && result.PartHPAfter == 0) PartDestroyed?.Invoke(part);
-            return result;
+            for (int i = 0; i < results.Length; i++)
+            {
+                results[i].StateAfter = State;
+                results[i].DestructionChecked = results[i].Applied && destructionChecked;
+            }
+            // Observers (turns, weapons, movement and visibility) see the complete hit.
+            if (before != State) StateChanged?.Invoke();
+            var notified = new bool[7];
+            foreach (var result in results)
+                if (result.DamageDealt > 0 && result.PartHPAfter == 0 && !notified[(int)result.Part - 1])
+                {
+                    notified[(int)result.Part - 1] = true;
+                    PartDestroyed?.Invoke(result.Part);
+                }
+            return results;
         }
 
         public bool MarkEjected()

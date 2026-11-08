@@ -1084,6 +1084,14 @@ PrefabInstance:
       value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: pilotData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1086c908dda7cb94e88f244dd2d8b639, type: 2}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
       propertyPath: startGridPosition.x
       value: 14
       objectReference: {fileID: 0}
@@ -1091,10 +1099,6 @@ PrefabInstance:
       propertyPath: startGridPosition.y
       value: 10
       objectReference: {fileID: 0}
-    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
-      propertyPath: mechaData
-      value: 
-      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1140,6 +1144,9 @@ MonoBehaviour:
   rightWeapon: {fileID: 11400000, guid: ac49ab422f563c644898af835309a746, type: 2}
   leftGrip: 0
   rightGrip: 0
+  leftSpareMagazineCount: -1
+  rightSpareMagazineCount: -1
+  backpack: {fileID: 0}
 --- !u!1001 &925477625
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1226,6 +1233,14 @@ PrefabInstance:
       value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: pilotData
+      value: 
+      objectReference: {fileID: 11400000, guid: 8cdd0296deb746c43a581f10fb615b9c, type: 2}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
       propertyPath: startGridPosition.x
       value: 3
       objectReference: {fileID: 0}
@@ -1277,10 +1292,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player 1 (3,3)
       objectReference: {fileID: 0}
-    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
-      propertyPath: mechaData
-      value: 
-      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1326,6 +1337,9 @@ MonoBehaviour:
   rightWeapon: {fileID: 11400000, guid: ac49ab422f563c644898af835309a746, type: 2}
   leftGrip: 0
   rightGrip: 0
+  leftSpareMagazineCount: -1
+  rightSpareMagazineCount: -1
+  backpack: {fileID: 0}
 --- !u!1 &1077212103
 GameObject:
   m_ObjectHideFlags: 0
@@ -1451,6 +1465,14 @@ PrefabInstance:
       value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: pilotData
+      value: 
+      objectReference: {fileID: 11400000, guid: 9fd490d7cb374894ead4ceb00efa9230, type: 2}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
       propertyPath: startGridPosition.x
       value: 5
       objectReference: {fileID: 0}
@@ -1502,10 +1524,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player 2 (5,3)
       objectReference: {fileID: 0}
-    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
-      propertyPath: mechaData
-      value: 
-      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1551,6 +1569,9 @@ MonoBehaviour:
   rightWeapon: {fileID: 11400000, guid: ad7e1a73866fb3f4d8b2af9666161e01, type: 2}
   leftGrip: 0
   rightGrip: 1
+  leftSpareMagazineCount: -1
+  rightSpareMagazineCount: -1
+  backpack: {fileID: 0}
 --- !u!1001 &1160467110
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1718,6 +1739,14 @@ PrefabInstance:
       value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: pilotData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1086c908dda7cb94e88f244dd2d8b639, type: 2}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
       propertyPath: startGridPosition.x
       value: 12
       objectReference: {fileID: 0}
@@ -1725,10 +1754,6 @@ PrefabInstance:
       propertyPath: startGridPosition.y
       value: 10
       objectReference: {fileID: 0}
-    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
-      propertyPath: mechaData
-      value: 
-      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1774,6 +1799,9 @@ MonoBehaviour:
   rightWeapon: {fileID: 11400000, guid: ac49ab422f563c644898af835309a746, type: 2}
   leftGrip: 0
   rightGrip: 0
+  leftSpareMagazineCount: -1
+  rightSpareMagazineCount: -1
+  backpack: {fileID: 0}
 --- !u!1001 &1391928798
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2188,6 +2216,14 @@ PrefabInstance:
       value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
+      propertyPath: pilotData
+      value: 
+      objectReference: {fileID: 11400000, guid: 1086c908dda7cb94e88f244dd2d8b639, type: 2}
+    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
       propertyPath: startGridPosition.x
       value: 16
       objectReference: {fileID: 0}
@@ -2195,10 +2231,6 @@ PrefabInstance:
       propertyPath: startGridPosition.y
       value: 10
       objectReference: {fileID: 0}
-    - target: {fileID: 5848552349284501500, guid: 302b57d66ca826d419d12d084123abd2, type: 3}
-      propertyPath: mechaData
-      value: 
-      objectReference: {fileID: 11400000, guid: 1609ab7ad9a28564a9c7c2f0538ec11b, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2240,10 +2272,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1aaf93c1b70148b49b5e968ce5f07b6f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.UnitWeaponLoadout
-  leftWeapon: {fileID: 11400000, guid: 122b1fe0327ebdb47a557befe4676958, type: 2}
-  rightWeapon: {fileID: 11400000, guid: ac49ab422f563c644898af835309a746, type: 2}
-  leftGrip: 0
+  leftWeapon: {fileID: 11400000, guid: 2b0a59669b2232248a03d45da3bb8b07, type: 2}
+  rightWeapon: {fileID: 0}
+  leftGrip: 1
   rightGrip: 0
+  leftSpareMagazineCount: -1
+  rightSpareMagazineCount: -1
+  backpack: {fileID: 0}
 --- !u!1 &1705247935
 GameObject:
   m_ObjectHideFlags: 0
@@ -2365,6 +2400,14 @@ PrefabInstance:
       value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: mechaData
+      value: 
+      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
+      propertyPath: pilotData
+      value: 
+      objectReference: {fileID: 11400000, guid: adcbf1037068c23438f75986402ec1f5, type: 2}
+    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
       propertyPath: startGridPosition.x
       value: 7
       objectReference: {fileID: 0}
@@ -2416,10 +2459,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player 3 (7,3)
       objectReference: {fileID: 0}
-    - target: {fileID: 6010532525970313146, guid: 21816bdff60fb3b4aa9fad0bca56e7d2, type: 3}
-      propertyPath: mechaData
-      value: 
-      objectReference: {fileID: 11400000, guid: 9123cb9d0d5463c47b6c669b5ab2555c, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2461,10 +2500,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1aaf93c1b70148b49b5e968ce5f07b6f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.UnitWeaponLoadout
-  leftWeapon: {fileID: 11400000, guid: 122b1fe0327ebdb47a557befe4676958, type: 2}
-  rightWeapon: {fileID: 11400000, guid: ac49ab422f563c644898af835309a746, type: 2}
-  leftGrip: 0
+  leftWeapon: {fileID: 11400000, guid: 2b0a59669b2232248a03d45da3bb8b07, type: 2}
+  rightWeapon: {fileID: 0}
+  leftGrip: 1
   rightGrip: 0
+  leftSpareMagazineCount: 3
+  rightSpareMagazineCount: 0
+  backpack: {fileID: 0}
 --- !u!1 &1874057551
 GameObject:
   m_ObjectHideFlags: 0
@@ -2583,6 +2625,7 @@ MonoBehaviour:
   rangeMaterial: {fileID: 2100000, guid: 1f0072af7071d524ea91e31eb0116b72, type: 2}
   selectionMaterial: {fileID: 2100000, guid: c7eedcc6d1a34a449928f7f922a379a0, type: 2}
   attackMaterial: {fileID: 0}
+  overwatchMaterial: {fileID: 0}
   enemySelectionMaterial: {fileID: 0}
 --- !u!114 &1874057556
 MonoBehaviour:

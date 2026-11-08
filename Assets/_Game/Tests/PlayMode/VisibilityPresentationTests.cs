@@ -126,10 +126,14 @@ namespace MechaXCOM.Tests
             spotter.Vision.Configure(0);
             Assert.That(root.transform.Find("Enemy Action Indicator").gameObject.activeSelf, Is.False);
         }
-        [Test] public void LastSightLostClosesTargetPreview()
+        [UnityTest] public IEnumerator LastSightLostClosesTargetPreview()
         {
             Reveal(); input.SelectUnit(player); input.BeginAttack(); input.TrySelectTarget(enemy);
             Assert.That(input.TryAttackSelected().WasExecuted, Is.True);
+            Assert.That(turns.IsPresentingAttack, Is.True);
+            float deadline = Time.realtimeSinceStartup + 2;
+            while (turns.IsPresentingAttack && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(turns.IsPresentingAttack, Is.False);
             player.ActionPoints.ResetForTurn();
             input.BeginAttack(); input.TrySelectTarget(enemy); input.TrySelectBodyPart(TargetBodyPart.Head);
             player.Combat.ConfigureTestRanged(5, 80, 3, 3);

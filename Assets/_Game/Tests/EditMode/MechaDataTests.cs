@@ -26,6 +26,34 @@ namespace MechaXCOM.Tests
             if (folder != null && AssetDatabase.IsValidFolder(folder)) AssetDatabase.DeleteAsset(folder);
         }
         private object Read(string name) => type.GetProperty(name).GetValue(data);
+        private System.Reflection.PropertyInfo DetectionProperty()
+        {
+            var property = type.GetProperty("DetectionRange");
+            Assert.That(property, Is.Not.Null, "MechaData must define a base detection range.");
+            return property;
+        }
+        [Test] public void DetectionRangeDefaultsToTen()
+        { Assert.That(DetectionProperty().GetValue(data), Is.EqualTo(10)); }
+        [Test] public void ZeroDetectionRangeIsValid()
+        {
+            var property = DetectionProperty(); Set("mechaId", "zero_sensor"); Set("detectionRange", 0);
+            Assert.That(Valid(), Is.True); Assert.That(property.GetValue(data), Is.Zero);
+        }
+        [Test] public void NegativeDetectionRangeIsRejectedAndAuthoringClampsToZero()
+        {
+            var property = DetectionProperty(); Set("mechaId", "negative_sensor"); Set("detectionRange", -1);
+            Assert.That(Valid(), Is.False);
+            type.GetMethod("OnValidate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(data, null);
+            Assert.That(property.GetValue(data), Is.Zero); Assert.That(Valid(), Is.True);
+        }
+        [TestCase("Assets/_Game/Data/Mecha/SampleMecha.asset")]
+        [TestCase("Assets/_Game/Data/Mecha/SampleEnemyMecha 1.asset")]
+        public void ExistingMechaAssetsWithoutDetectionFieldUseTen(string path)
+        {
+            var property = DetectionProperty(); var sample = AssetDatabase.LoadAssetAtPath<MechaData>(path);
+            Assert.That(sample, Is.Not.Null); Assert.That(property.GetValue(sample), Is.EqualTo(10));
+            Assert.That(sample.IsValid(out var reason), Is.True, reason);
+        }
         private void Set(string name, object value) => type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(data, value);
         private bool Valid()
         {
@@ -90,6 +118,7 @@ namespace MechaXCOM.Tests
         }
         [Test] public void AllRequestedFieldsSurviveAssetReload()
         {
+            DetectionProperty(); Set("detectionRange", 12);
             Set("mechaId", "test_mecha"); Set("displayName", "테스트 기체"); Set("description", "설명\n두 번째 줄");
             Set("accuracy", 35); Set("evasion", 20);
             Set("baseAP", 7); Set("movementCellsPerAP", .5f); Set("chassisWeightTonnes", 12.5f); Set("equipmentWeightLimitTonnes", 4.5f);
@@ -99,7 +128,9 @@ namespace MechaXCOM.Tests
             string path = folder + "/Mecha.asset";
             AssetDatabase.CreateAsset(data, path); AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            Resources.UnloadAsset(data);
             data = (ScriptableObject)AssetDatabase.LoadAssetAtPath(path, type);
+            Assert.That(Read("DetectionRange"), Is.EqualTo(12));
             Assert.That(Valid(), Is.True);
             Assert.That(Read("MechaId"), Is.EqualTo("test_mecha"));
             Assert.That(Read("DisplayName"), Is.EqualTo("테스트 기체")); Assert.That(Read("Description"), Is.EqualTo("설명\n두 번째 줄"));

@@ -13,6 +13,7 @@ namespace MechaXCOM
         public int TargetPartHPAfter;
         public MechState TargetStateAfter;
         public bool DestructionChecked;
+        public System.Collections.Generic.IReadOnlyList<PartDamageResult> AdditionalPartDamage;
         public bool TargetDestroyed => TargetStateAfter == MechState.Destroyed;
     }
 }

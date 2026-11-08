@@ -5,6 +5,29 @@ namespace MechaXCOM.Tests
 {
     public class CombatMathTests
     {
+        [TestCase(100, 1f, 99)] [TestCase(120, 1f, 99)]
+        [TestCase(100, .999f, 99)] [TestCase(99, 1f, 99)]
+        [TestCase(100, .984f, 98)] [TestCase(0, 1f, 0)]
+        [TestCase(120, .5f, 60)]
+        public void FinalChanceCapsAtNinetyNineAfterAllMultipliers(int chance, float cover, int expected)
+            => Assert.That(CombatMath.CalculateAttackHitChance(chance, 1f, cover), Is.EqualTo(expected));
+
+        [TestCase(AttackType.Ranged, 98, true)] [TestCase(AttackType.Ranged, 99, false)]
+        [TestCase(AttackType.Melee, 98, true)] [TestCase(AttackType.Melee, 99, false)]
+        public void BoostedAttackPreviewAndActualRollKeepOnePercentMissChance(AttackType type, int roll, bool hit)
+        {
+            using (var b = new MechaAccuracyTestBattle(playerAccuracy: 50, playerShooting: 50, playerMelee: 50))
+            {
+                b.Combat.SetRollSource(() => roll); b.Combat.SetCriticalRollSource(() => 99f);
+                var preview = b.Combat.GetPreview(b.Player, b.Enemy, type);
+                Assert.That(preview.CanAttack, Is.True);
+                Assert.That(preview.HitChance, Is.EqualTo(99));
+                var result = b.Combat.TryAttack(b.Player, b.Enemy, type);
+                Assert.That(result.WasExecuted, Is.True); Assert.That(result.HitChance, Is.EqualTo(99));
+                Assert.That(result.Hit, Is.EqualTo(hit));
+                Assert.That(b.Enemy.Health.GetCurrentHP(TargetBodyPart.Torso), Is.EqualTo(hit ? type == AttackType.Melee ? 10 : 15 : 20));
+            }
+        }
         [TestCase(3, 3, false)] [TestCase(3, 4, false)] [TestCase(4, 4, false)]
         [TestCase(5, 0, true)] [TestCase(6, 0, false)]
         [TestCase(3, 2, true)] [TestCase(-3, 2, true)] [TestCase(3, -2, true)]
@@ -20,7 +43,7 @@ namespace MechaXCOM.Tests
         public void IncomingDirectionUsesEightAngularSectors(int x, int z, CoverDirection direction) =>
             Assert.That(CombatMath.GetIncomingDirection(new Vector2Int(x, z), Vector2Int.zero), Is.EqualTo(direction));
         [TestCase(80, .75f, 60)] [TestCase(80, .5f, 40)]
-        [TestCase(10, 0f, 0)] [TestCase(120, 1f, 100)]
+        [TestCase(10, 0f, 0)] [TestCase(120, 1f, 99)]
         public void HitChanceUsesMultiplicativeCover(int chance, float coverMultiplier, int expected) =>
             Assert.That(CombatMath.CalculateAttackHitChance(chance, 1f, coverMultiplier), Is.EqualTo(expected));
         [TestCase(55, 54, true)] [TestCase(55, 55, false)]

@@ -20,18 +20,21 @@ namespace MechaXCOM
             internal readonly bool UsesAmmo;
             internal readonly int Capacity, ReloadAPCost;
             internal int Loaded, Spares;
-            internal Magazine(WeaponData weapon)
+            internal Magazine(WeaponData weapon, int initialSpares, bool reloadable = true)
             {
                 Weapon = weapon; UsesAmmo = weapon.UsesAmmo;
                 Capacity = UsesAmmo ? Mathf.Max(1, weapon.MagazineCapacity) : 0;
-                Loaded = Capacity; Spares = UsesAmmo ? Mathf.Max(0, weapon.SpareMagazineCount) : 0;
-                ReloadAPCost = UsesAmmo ? Mathf.Max(1, weapon.ReloadAPCost) : 0;
+                Loaded = Capacity; Spares = UsesAmmo && reloadable ? Mathf.Max(0, initialSpares) : 0;
+                ReloadAPCost = UsesAmmo && reloadable ? Mathf.Max(1, weapon.ReloadAPCost) : 0;
             }
             internal WeaponAmmoStatus Status => new WeaponAmmoStatus(Weapon, UsesAmmo, Loaded, Capacity, Spares, ReloadAPCost);
         }
         private BattleUnit unit;
         private UnitWeaponLoadout loadout;
         private Magazine left, right;
+        private Magazine backpack;
+        private BackpackData equippedBackpack;
+        private bool backpackInitialized;
         internal void Initialize(BattleUnit owner)
         {
             if (unit && unit != owner) return;
@@ -52,26 +55,40 @@ namespace MechaXCOM
             var rightWeapon = loadout ? loadout.RightWeapon : null;
             var oldLeft = left; var oldRight = right;
             left = !leftWeapon ? null : oldLeft != null && oldLeft.Weapon == leftWeapon ? oldLeft :
-                oldRight != null && oldRight.Weapon == leftWeapon && rightWeapon != oldRight.Weapon ? oldRight : new Magazine(leftWeapon);
+                oldRight != null && oldRight.Weapon == leftWeapon && rightWeapon != oldRight.Weapon ? oldRight :
+                new Magazine(leftWeapon, loadout.CaptureSpareMagazineCount(WeaponSlot.LeftHand));
             right = !rightWeapon ? null : oldRight != null && oldRight != left && oldRight.Weapon == rightWeapon ? oldRight :
-                oldLeft != null && oldLeft != left && oldLeft.Weapon == rightWeapon ? oldLeft : new Magazine(rightWeapon);
+                oldLeft != null && oldLeft != left && oldLeft.Weapon == rightWeapon ? oldLeft :
+                new Magazine(rightWeapon, loadout.CaptureSpareMagazineCount(WeaponSlot.RightHand));
+            // Backpack equipment is chosen before battle. Snapshot it once so reloads,
+            // hand transfers and unsupported runtime replacements cannot refill it.
+            if (!backpackInitialized)
+            {
+                backpackInitialized = true;
+                equippedBackpack = loadout ? loadout.Backpack : null;
+                var weapon = equippedBackpack ? equippedBackpack.Weapon : null;
+                backpack = weapon ? new Magazine(weapon, 0, false) : null;
+            }
         }
         private Magazine GetMagazine(WeaponSlot slot)
         {
             RefreshLoadout();
-            return slot == WeaponSlot.LeftHand ? left : slot == WeaponSlot.RightHand ? right : null;
+            return slot == WeaponSlot.LeftHand ? left : slot == WeaponSlot.RightHand ? right :
+                slot == WeaponSlot.Backpack ? backpack : null;
         }
         public WeaponAmmoStatus GetStatus(WeaponSlot slot) => GetMagazine(slot)?.Status ?? default;
         public bool CanFire(WeaponSlot slot)
         {
             var magazine = GetMagazine(slot);
             return isActiveAndEnabled && unit && unit.IsInitialized && magazine != null &&
-                loadout && loadout.IsValid(out _) && (!magazine.UsesAmmo || magazine.Loaded > 0);
+                loadout && loadout.IsValid(out _) &&
+                (slot != WeaponSlot.Backpack || (loadout.Backpack == equippedBackpack && loadout.GetWeapon(slot) == magazine.Weapon)) &&
+                (!magazine.UsesAmmo || magazine.Loaded > 0);
         }
         public bool CanReload(WeaponSlot slot)
         {
             var magazine = GetMagazine(slot);
-            return isActiveAndEnabled && unit && unit.IsInitialized && magazine != null &&
+            return slot != WeaponSlot.Backpack && isActiveAndEnabled && unit && unit.IsInitialized && magazine != null &&
                 loadout && loadout.IsValid(out _) && magazine.UsesAmmo && magazine.Loaded < magazine.Capacity && magazine.Spares > 0;
         }
         internal bool TryConsumeShot(WeaponSlot slot)

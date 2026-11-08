@@ -27,9 +27,13 @@ namespace MechaXCOM
         public float GripMultiplier, DistanceMultiplier;
         public float ReactionMultiplier;
         public float MechaMultiplier;
+        public float PilotHitMultiplier, PilotDamageMultiplier;
         public int APCost;
         public bool UsesAmmo;
         public bool UsesEnergyPack;
         public int AmmoLoaded, MagazineCapacity, SpareMagazines;
+        public int AdditionalHitPartCount;
+        public float AdditionalDamageMinRatio, AdditionalDamageMaxRatio;
+        public int AdditionalDamageStepPercent;
     }
 }
