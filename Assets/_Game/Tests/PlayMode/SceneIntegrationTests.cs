@@ -143,6 +143,8 @@ namespace MechaXCOM.Tests
                 }
                 var inspectionInput = Object.FindFirstObjectByType<PlayerInputController>();
                 var inspection = Object.FindFirstObjectByType<BattleDebugUI>();
+                Assert.That(Object.FindFirstObjectByType<BattleCameraOrbit>().GetComponent<Camera>().rect,
+                    Is.EqualTo(new Rect(0, 0, 1, 1)), "Render the game behind the overlay HUD across the full screen.");
                 var ally = Object.FindObjectsByType<BattleUnit>(FindObjectsSortMode.None).First(u => u.Team == UnitTeam.Player);
                 Assert.That(inspectionInput.SelectUnit(ally), Is.True);
                 Assert.That(inspection.DisplayedUnit, Is.SameAs(ally));
@@ -151,6 +153,20 @@ namespace MechaXCOM.Tests
                 Assert.That(portrait, Is.Not.Null, "Authored scenes must supply a sample pilot portrait when no pilot is assigned.");
                 Assert.That(UnityEditor.AssetDatabase.GetAssetPath(portrait),
                     Is.EqualTo("Assets/_Game/Art/Characters/SampleAllyCharacter/Portraits/Default.png"));
+                var frame = new UnityEditor.SerializedObject(inspection).FindProperty("panelFrame").objectReferenceValue;
+                Assert.That(UnityEditor.AssetDatabase.GetAssetPath(frame),
+                    Is.EqualTo("Assets/_Game/Art/UI/Panels/UnitInfoFrame_Olive.png"));
+                if (name == "DestroyCommunicationStationTest")
+                {
+                    yield return null; yield return null;
+                    string path = Path.GetFullPath("Artifacts/debug-frame-station.png");
+                    if (File.Exists(path)) File.Delete(path);
+                    ScreenCapture.CaptureScreenshot(path);
+                    float deadline = Time.realtimeSinceStartup + 5;
+                    while (!File.Exists(path) && Time.realtimeSinceStartup < deadline)
+                    { UnityEditorInternal.InternalEditorUtility.RepaintAllViews(); yield return null; }
+                    Assert.That(File.Exists(path), Is.True);
+                }
                 Assert.That(File.ReadAllBytes(loadedScenePath), Is.EqualTo(savedSceneBytes));
             }
         }

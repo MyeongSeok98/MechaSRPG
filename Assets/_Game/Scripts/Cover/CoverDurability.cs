@@ -4,7 +4,7 @@ using UnityEngine;
 namespace MechaXCOM
 {
     [DisallowMultipleComponent, RequireComponent(typeof(CoverObject))]
-    public class CoverDurability : MonoBehaviour
+    public class CoverDurability : MonoBehaviour, IUnitStatusSource
     {
         [SerializeField, Min(1), InspectorName("최대 HP")] private int maxHP = 1000;
         [SerializeField, InspectorName("오브젝트 데이터 (선택)")] private DestructibleObjectData objectData;
@@ -14,6 +14,11 @@ namespace MechaXCOM
         public int CurrentHP { get { Initialize(); return currentHP; } }
         public bool IsDestroyed => CurrentHP == 0;
         public DestructibleObjectData Data => objectData;
+        public void GetStatusParts(System.Collections.Generic.List<UnitStatusPart> destination)
+        {
+            destination.Clear();
+            destination.Add(new UnitStatusPart("Body", "Body", CurrentHP, MaxHP));
+        }
         public bool ConfigureData(DestructibleObjectData data)
         {
             if (initialized || !data || !data.IsValid(out _)) return false;

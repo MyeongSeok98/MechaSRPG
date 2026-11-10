@@ -25,7 +25,7 @@ namespace MechaXCOM.Tests
                 var units = Object.FindObjectsByType<BattleUnit>(FindObjectsSortMode.None);
                 Assert.That(units.Length, Is.EqualTo(6)); Assert.That(units.All(u => u.IsInitialized), Is.True);
                 var player = units.First(u => u.Team == UnitTeam.Player &&
-                    u.GetComponent<UnitWeaponLoadout>().RightWeapon.name == "StandardRifle");
+                    u.GetComponent<UnitWeaponLoadout>().RightWeapon && u.GetComponent<UnitWeaponLoadout>().RightWeapon.name == "StandardRifle");
                 var enemy = units.First(u => u.Team == UnitTeam.Enemy);
                 var grid = Object.FindFirstObjectByType<GridManager>();
                 var input = Object.FindFirstObjectByType<PlayerInputController>();

@@ -68,7 +68,7 @@ namespace MechaXCOM.Tests
         }
         private void Aim(BattleUnit actor)
         {
-            Assert.That(input.SelectUnit(actor),Is.True);
+            Assert.That(input.SelectUnit(actor),Is.True,$"Select {actor.name}: busy={turns.IsAnyUnitBusy}, turnBanner={turns.IsPresentingTurn}, attackPopup={turns.IsPresentingAttack}, facing={turns.PendingFacingUnit}, alive={actor.IsAlive}");
             Assert.That(input.BeginWeaponAttack(WeaponSlot.RightHand),Is.True);
             Assert.That(input.TrySelectCover(cover),Is.True,input.CurrentCoverPreview.FailureReason);
         }
@@ -90,6 +90,10 @@ namespace MechaXCOM.Tests
         }
         [UnityTest] public IEnumerator TwoUIShotsDestroyStationAndWaitForPopupBeforeVictory()
         {
+            // This test exercises two identical demolition shots, independent of user-edited second-unit equipment.
+            var firstLoadout=allies[0].GetComponent<UnitWeaponLoadout>();
+            Assert.That(allies[1].GetComponent<UnitWeaponLoadout>().TryConfigure(firstLoadout.LeftWeapon,firstLoadout.LeftGrip,
+                firstLoadout.RightWeapon,firstLoadout.RightGrip),Is.True);
             int ap=allies[0].ActionPoints.CurrentPoints; int ammo=allies[0].Ammo.GetStatus(WeaponSlot.RightHand).Loaded;
             FireViaUI(allies[0]); Assert.That(health.CurrentHP,Is.EqualTo(1000));
             Assert.That(allies[0].ActionPoints.CurrentPoints,Is.EqualTo(ap-3)); Assert.That(allies[0].Ammo.GetStatus(WeaponSlot.RightHand).Loaded,Is.EqualTo(ammo-1));
@@ -125,7 +129,12 @@ namespace MechaXCOM.Tests
         [UnityTest] public IEnumerator MouseClickOnVisibleBuildingSelectsStationForAttack()
         {
             Assert.That(input.SelectUnit(allies[0]),Is.True); Assert.That(input.BeginWeaponAttack(WeaponSlot.RightHand),Is.True);
+            var orbit=Camera.main.GetComponent<BattleCameraOrbit>(); Assert.That(orbit.TryFocus(cover.Collider.bounds.center),Is.True);
+            float focusUntil=Time.realtimeSinceStartup+2;
+            while((bool)typeof(BattleCameraOrbit).GetField("focusing",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(orbit) && Time.realtimeSinceStartup<focusUntil) yield return null;
+            yield return null;
             var camera=Camera.main; var point=camera.WorldToScreenPoint(cover.Collider.bounds.center);
+            Assert.That(Object.FindFirstObjectByType<BattleDebugUI>().ContainsScreenPoint(point),Is.False);
             Assert.That(camera.pixelRect.Contains(point),Is.True,"Sample station must be inside the starting camera viewport.");
             Physics.SyncTransforms(); Assert.That(Physics.Raycast(camera.ScreenPointToRay(point),out var hit),Is.True);
             Assert.That(hit.collider.GetComponentInParent<CoverObject>(),Is.SameAs(cover));

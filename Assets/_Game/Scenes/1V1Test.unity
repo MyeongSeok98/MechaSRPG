@@ -329,9 +329,9 @@ Camera:
   m_LensShift: {x: 0, y: 0}
   m_NormalizedViewPortRect:
     serializedVersion: 2
-    x: 0.23
+    x: 0
     y: 0
-    width: 0.77
+    width: 1
     height: 1
   near clip plane: 0.1
   far clip plane: 150
@@ -510,6 +510,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a84e41c50b6873643a30f05e286fb1f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.BattleSceneController
+  unitInfoPanelPrefab: {fileID: 2493287626494869457, guid: 43e29dfd2cb9c054e8172e8ab38923b0, type: 3}
   grid: {fileID: 869388590}
   coverSystem: {fileID: 869388589}
   units:
@@ -550,6 +551,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8da461bf5859dc40bd4bb2ceaf36986, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.BattleDebugUI
+  panelFrame: {fileID: 21300000, guid: 4a4696260c8140908a38e13fe132ae25, type: 3}
   fallbackPortrait: {fileID: 21300000, guid: cca862be9fbc8e44eb803e58cf4fdda7, type: 3}
   panelRect:
     serializedVersion: 2

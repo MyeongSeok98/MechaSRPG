@@ -38,8 +38,10 @@ namespace MechaXCOM.Tests
             yield return TurnBannerTestSupport.Finish(turns);
             Object.FindFirstObjectByType<BattleDebugUI>().enabled = false;
             var camera = Object.FindFirstObjectByType<BattleCameraOrbit>().GetComponent<Camera>();
+            Assert.That(camera.rect, Is.EqualTo(new Rect(0, 0, 1, 1)));
+            // Saved scenes use full screen. Exercise legacy gutter clearing only in this temporary test instance.
+            camera.rect = new Rect(.23f, 0, .77f, 1);
             var savedRect = camera.rect;
-            Assert.That(savedRect.x, Is.GreaterThan(.1f), "Exercise the authored partial camera viewport.");
             var probe = new GameObject("Gutter pixel seed").AddComponent<TurnBannerGutterSeed>();
             yield return Capture(scene + "-seed");
             AssertGutter(scene + "-seed", Color.magenta);

@@ -173,7 +173,9 @@ namespace MechaXCOM.Tests
             attacker.ActionPoints.ResetForTurn();
             var meleePreview = combat.GetPreview(attacker, target, AttackType.Melee, TargetBodyPart.Head);
             attacker.Combat.TryGetAttack(meleePreview.WeaponSlot, out var meleeStats, out _);
-            int meleeDamage = AuthoredWeaponDamageExpectation.Normal(target, meleeStats.Weapon, (meleePreview.MinDamage + meleePreview.MaxDamage) / 2);
+            int meleeRaw = (meleePreview.MinDamage + meleePreview.MaxDamage) / 2;
+            // Independently include the existing pilot melee bonus; preserve authored pilot stats.
+            int meleeDamage = (int)System.Math.Round(meleeRaw * (1m + Mathf.Clamp(attacker.PilotMelee, 0, 50) * .005m), System.MidpointRounding.AwayFromZero);
             var melee = combat.TryAttack(attacker, target, AttackType.Melee, TargetBodyPart.Head);
             Assert.That(melee.Hit, Is.True);
             Assert.That(target.Health.GetCurrentHP(TargetBodyPart.Torso),

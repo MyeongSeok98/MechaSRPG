@@ -5,7 +5,7 @@ using UnityEngine.Serialization;
 
 namespace MechaXCOM
 {
-    public class UnitHealth : MonoBehaviour
+    public class UnitHealth : MonoBehaviour, IUnitStatusSource
     {
         [FormerlySerializedAs("maxHealth")]
         [SerializeField, Min(1)] private int bodyMaxHP = 20;
@@ -27,6 +27,15 @@ namespace MechaXCOM
         public bool PilotEjected => State == MechState.Ejected;
         public event Action StateChanged;
         public event Action<TargetBodyPart> PartDestroyed;
+
+        private static readonly TargetBodyPart[] statusOrder = { TargetBodyPart.Head, TargetBodyPart.Torso,
+            TargetBodyPart.Cockpit, TargetBodyPart.LeftArm, TargetBodyPart.RightArm, TargetBodyPart.LeftLeg, TargetBodyPart.RightLeg };
+        public void GetStatusParts(List<UnitStatusPart> destination)
+        {
+            destination.Clear();
+            foreach (var part in statusOrder)
+                destination.Add(new UnitStatusPart(part.ToString(), BodyTargetRules.Label(part), GetCurrentHP(part), GetMaxHP(part)));
+        }
 
         public int MajorPartsDestroyed
         {

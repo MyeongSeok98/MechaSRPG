@@ -68,7 +68,25 @@ namespace MechaXCOM
             if (x + width > rightEdge) x = point.x - width - 24 * Scale;
             rect = new Rect(Mathf.Clamp(x, 8 * Scale, rightEdge - width),
                 Mathf.Clamp(Screen.height - point.y - verticalOffset, 8 * Scale, Screen.height - height - 8 * Scale), width, height);
+            AvoidInfoOverlays(ref rect, rightEdge);
             return true;
+        }
+        private void AvoidInfoOverlays(ref Rect rect, float rightEdge)
+        {
+            var debug = input ? input.GetComponent<BattleDebugUI>() : null;
+            if (!debug) return;
+            float gap = 8 * Scale;
+            if (debug.TryGetUnitInfoRect(out var left) && rect.Overlaps(left))
+            {
+                if (left.xMax + gap + rect.width <= rightEdge) rect.x = left.xMax + gap;
+                else if (left.yMax + gap + rect.height <= Screen.height - gap) rect.y = left.yMax + gap;
+            }
+            if (debug.TryGetCompactControlsRect(out var controls) && rect.Overlaps(controls))
+            {
+                float leftEdge = debug.TryGetUnitInfoRect(out left) ? left.xMax + gap : gap;
+                if (controls.xMin - gap - rect.width >= leftEdge) rect.x = controls.xMin - gap - rect.width;
+                else if (controls.yMax + gap + rect.height <= Screen.height - gap) rect.y = controls.yMax + gap;
+            }
         }
         private Rect Row(int row)
         {
@@ -92,6 +110,7 @@ namespace MechaXCOM
             if (x + width > Screen.width - gap) x = main.xMin - gap - width;
             rect = new Rect(Mathf.Clamp(x, gap, Screen.width - width - gap),
                 Mathf.Clamp(main.y, gap, Screen.height - height - gap), width, height);
+            AvoidInfoOverlays(ref rect, Screen.width - gap);
             return true;
         }
         private Rect AttackRow(int row)

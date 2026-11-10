@@ -6,11 +6,45 @@ namespace MechaXCOM
     {
         [SerializeField] private Rect panelRect = new Rect(16, 16, 270, 306);
         [SerializeField, InspectorName("기본 파일럿 초상화")] private Sprite fallbackPortrait;
+        [SerializeField, InspectorName("디버그창 프레임")] private Sprite panelFrame;
         private GridManager grid;
         private CoverSystem coverSystem;
         private BattleUnit selected;
         private PlayerInputController input;
         private TurnManager turns;
+        private SelectedUnitInfoPanel unitInfoPanel;
+        public bool DetailedDebugVisible { get; private set; }
+        public void ConfigureUnitInfoPanel(SelectedUnitInfoPanel panel) => unitInfoPanel = panel;
+        public void ToggleDetailedDebug() => DetailedDebugVisible = !DetailedDebugVisible;
+        public bool IsPointerOverUnitPanel(Vector2 point) => unitInfoPanel && !DetailedDebugVisible && unitInfoPanel.ContainsScreenPoint(point);
+        public bool CompactControlsVisible => unitInfoPanel && !DetailedDebugVisible &&
+            (!input || (turns && turns.IsBattleOver) || (!input.HasPendingOverwatchDecision && !input.TargetUnit && !input.TargetCover && !input.SelectedImpactCell.HasValue));
+        public bool TryGetUnitInfoRect(out Rect rect)
+        { rect = default; if (!unitInfoPanel || DetailedDebugVisible || !unitInfoPanel.IsVisible) return false; rect = unitInfoPanel.GUIRect; return true; }
+        public bool TryGetCompactControlsRect(out Rect rect)
+        {
+            rect = default; if (!CompactControlsVisible) return false;
+            var local = CompactControlsRect;
+            rect = new Rect(local.x * DisplayScale, local.y * DisplayScale, local.width * DisplayScale, local.height * DisplayScale); return true;
+        }
+        public string CompactFeedbackText
+        {
+            get
+            {
+                if (turns && turns.IsBattleOver)
+                    return (turns.IsPlayerVictory ? "MISSION SUCCESS" : "MISSION FAILED") + "\n" + (turns.Mission ? turns.Mission.Result.Reason : string.Empty);
+                if (!input) return string.Empty;
+                if (!string.IsNullOrEmpty(input.InputMessage)) return input.InputMessage;
+                var result = input.LastAttackResult;
+                return !result.WasExecuted ? string.Empty :
+                    $"{(result.IsCritical ? "CRITICAL" : result.Hit ? "HIT" : "MISS")} / Damage {result.DamageDealt}\n{BodyTargetRules.Label(result.TargetPart)} HP {result.TargetPartHPAfter}";
+            }
+        }
+        private void Update()
+        {
+            if (unitInfoPanel && UnityEngine.InputSystem.Keyboard.current != null &&
+                UnityEngine.InputSystem.Keyboard.current.f3Key.wasPressedThisFrame) ToggleDetailedDebug();
+        }
         public BattleUnit DisplayedUnit => selected && selected.isActiveAndEnabled && selected.IsAlive &&
             (selected.Team == UnitTeam.Player || (turns && turns.Visibility && turns.Visibility.IsVisibleTo(UnitTeam.Player, selected)))
             ? selected : null;
@@ -56,7 +90,31 @@ namespace MechaXCOM
         public bool ContainsScreenPoint(Vector2 point)
         {
             if (!isActiveAndEnabled) return false;
+            if (unitInfoPanel && !DetailedDebugVisible)
+                return IsPointerOverUnitPanel(point) || (CompactControlsVisible && CompactControlsRect.Contains(new Vector2(point.x, Screen.height - point.y) / DisplayScale));
             return DisplayRect.Contains(new Vector2(point.x, Screen.height - point.y) / DisplayScale);
+        }
+        private Rect CompactControlsRect => new Rect(Screen.width / DisplayScale - 262, 16, 246, string.IsNullOrEmpty(CompactFeedbackText) ? 156 : 260);
+        private Vector2 compactFeedbackScroll;
+        private void DrawCompactControls()
+        {
+            var oldMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(DisplayScale, DisplayScale, 1));
+            GUILayout.BeginArea(CompactControlsRect, GUI.skin.box);
+            GUILayout.Label(turns ? $"TURN {turns.TurnNumber} / {turns.ActiveTeam}" : "BATTLE");
+            if (turns && turns.Mission && turns.Mission.Data) GUILayout.Label(turns.Mission.Data.DisplayName);
+            if (turns && turns.Mission && turns.Mission.Objective != null)
+                GUILayout.Label($"Objective {turns.Mission.Objective.DestroyedCount}/{turns.Mission.Objective.TotalCount}");
+            bool enabled = GUI.enabled; GUI.enabled = enabled && CanEndTurn;
+            if (GUILayout.Button("End Turn", GUILayout.Height(28))) input.TryEndTurn();
+            GUI.enabled = enabled; GUILayout.Label("F3: Debug");
+            if (!string.IsNullOrEmpty(CompactFeedbackText))
+            {
+                compactFeedbackScroll = GUILayout.BeginScrollView(compactFeedbackScroll, GUILayout.Height(94));
+                GUILayout.Label(CompactFeedbackText, new GUIStyle(GUI.skin.label) { wordWrap = true });
+                GUILayout.EndScrollView();
+            }
+            GUILayout.EndArea(); GUI.matrix = oldMatrix;
         }
         private float DisplayScale => Mathf.Clamp(Mathf.Min(Screen.width / 1280f, Screen.height / 720f), 0.25f, 1f);
         private Rect DisplayRect => turns ? new Rect(panelRect.x, panelRect.y, panelRect.width, 680) : selected ? new Rect(panelRect.x, panelRect.y, panelRect.width, 390) :
@@ -64,6 +122,7 @@ namespace MechaXCOM
         private void OnGUI()
         {
             if (!grid || !coverSystem) return;
+            if (unitInfoPanel && !DetailedDebugVisible) { if (CompactControlsVisible) DrawCompactControls(); return; }
             bool originalGUIEnabled = GUI.enabled;
             bool turnLocked = turns && turns.IsPresentingTurn;
             GUI.enabled = originalGUIEnabled && !turnLocked;
@@ -73,19 +132,34 @@ namespace MechaXCOM
             var selected = DisplayedUnit;
             if (titleStyle == null)
             {
-                titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 19, fontStyle = FontStyle.Bold };
+                titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 19, fontStyle = FontStyle.Bold, wordWrap = true };
                 titleStyle.normal.textColor = new Color(1f, 0.8f, 0.35f);
-                textStyle = new GUIStyle(GUI.skin.label) { fontSize = 15 };
+                textStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
                 textStyle.normal.textColor = Color.white;
             }
             var oldMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.Scale(new Vector3(DisplayScale, DisplayScale, 1));
             var oldColor = GUI.color;
-            GUI.color = new Color32(25, 42, 70, 255);
-            GUI.DrawTexture(DisplayRect, Texture2D.whiteTexture);
+            if (panelFrame)
+            {
+                GUI.color = Color.white;
+                SlicedSpriteGUI.Draw(DisplayRect, panelFrame);
+            }
+            else
+            {
+                GUI.color = new Color32(25, 42, 70, 255);
+                GUI.DrawTexture(DisplayRect, Texture2D.whiteTexture);
+            }
             GUI.color = oldColor;
-            GUILayout.BeginArea(new Rect(DisplayRect.x + 14, DisplayRect.y + 10, DisplayRect.width - 28, DisplayRect.height - 20));
+            float sideInset = panelFrame ? 18 : 14;
+            float topInset = panelFrame ? Mathf.Min(48, DisplayRect.height / 3) : 10;
+            float bottomInset = panelFrame ? 48 : 10;
+            float contentWidth = DisplayRect.width - sideInset * 2;
+            float columnWidth = Mathf.Max(1, (contentWidth - 32) / 2);
+            GUILayout.BeginArea(new Rect(DisplayRect.x + sideInset, DisplayRect.y + topInset,
+                contentWidth, DisplayRect.height - topInset - bottomInset));
             scrollPosition = GUILayout.BeginScrollView(scrollPosition);
+            GUILayout.BeginVertical(GUILayout.Width(Mathf.Max(1, contentWidth - 24)));
             ResourceTypography.LayoutLabel("GROUND TACTICS / LAB", titleStyle);
             if (turns)
             {
@@ -137,7 +211,7 @@ namespace MechaXCOM
                         {
                             var part = (TargetBodyPart)(j + 1);
                             ResourceTypography.LayoutLabel(UnitInspectionText.PartHP(selected, part),
-                                hpStyle, GUILayout.Width((DisplayRect.width - 28) / 2));
+                                hpStyle, GUILayout.Width(columnWidth));
                         }
                         GUILayout.EndHorizontal();
                     }
@@ -169,7 +243,7 @@ namespace MechaXCOM
                         {
                             var direction = CoverDirections.Clockwise[j];
                             ResourceTypography.LayoutLabel($"{names[j]}: ×{GetIncomingCoverMultiplier(direction):0.##}",
-                                coverStyle, GUILayout.Width((DisplayRect.width - 28) / 2));
+                                coverStyle, GUILayout.Width(columnWidth));
                         }
                         GUILayout.EndHorizontal();
                     }
@@ -226,6 +300,7 @@ namespace MechaXCOM
                     if (turns.Mission) ResourceTypography.LayoutLabel(turns.Mission.Result.Reason, textStyle);
                 }
             }
+            GUILayout.EndVertical();
             GUILayout.EndScrollView();
             GUILayout.EndArea();
             GUI.matrix = oldMatrix;

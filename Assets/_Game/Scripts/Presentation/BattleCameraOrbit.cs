@@ -20,6 +20,8 @@ namespace MechaXCOM
         private Vector3 focusStart, focusDestination, focusPoint;
         private bool initialized, rotating, focusing;
         private TurnManager turns;
+        private BattleDebugUI battleUI;
+        public void ConfigureUI(BattleDebugUI ui) => battleUI = ui;
         public void ConfigureTurns(TurnManager manager) => turns = manager;
         private bool InputLocked => turns && turns.IsPresentingTurn;
 
@@ -69,7 +71,7 @@ namespace MechaXCOM
         {
             if (!initialized || InputLocked) return;
             var mouse = Mouse.current;
-            if (mouse != null && battleCamera.orthographic)
+            if (mouse != null && battleCamera.orthographic && !(battleUI && battleUI.ContainsScreenPoint(mouse.position.ReadValue())))
             {
                 float scroll = mouse.scroll.ReadValue().y;
                 if (scroll != 0)

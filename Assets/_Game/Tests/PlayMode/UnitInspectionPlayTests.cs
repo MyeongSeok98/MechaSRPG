@@ -40,6 +40,11 @@ namespace MechaXCOM.Tests
             visual = b.Root.AddComponent<GridVisualizer>();
             gold = new Material(modelMaterial) { color = Color.yellow }; visual.ConfigureMaterials(null, null, gold); visual.Initialize(b.Grid, b.Turns);
             info = b.Root.AddComponent<BattleDebugUI>(); info.Initialize(b.Grid, b.Cover);
+#if UNITY_EDITOR
+            var frame = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Game/Art/UI/Panels/UnitInfoFrame_Olive.png");
+            Assert.That(frame, Is.Not.Null);
+            typeof(BattleDebugUI).GetField("panelFrame", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(info, frame);
+#endif
             camera = new GameObject("Inspection Camera").AddComponent<Camera>(); camera.transform.SetParent(b.Root.transform);
             camera.rect = new Rect(.23f, 0, .77f, 1); camera.orthographic = true; camera.orthographicSize = 9;
             camera.transform.position = new Vector3(6, 20, -15); camera.transform.LookAt(new Vector3(6, 0, 4));
@@ -85,6 +90,22 @@ namespace MechaXCOM.Tests
             foreach (var renderer in Marker.GetComponentsInChildren<Renderer>())
             { var color = renderer.sharedMaterial.color; Assert.That(color.r, Is.GreaterThan(color.g * 2)); }
             Assert.That(Marker.position.x, Is.EqualTo(b.Enemy.transform.position.x)); Assert.That(Marker.GetComponentsInChildren<Collider>(), Is.Empty);
+        }
+        [UnityTest] public IEnumerator FullScreenWorldBehindDebugPanelDoesNotReceiveClicks()
+        {
+            camera.rect = new Rect(0, 0, 1, 1);
+            Assert.That(input.SelectUnit(b.Player), Is.True);
+            b.Root.GetComponent<UnitActionUI>().enabled = false;
+            var point = new Vector2(20, Screen.height - 40);
+            Assert.That(info.ContainsScreenPoint(point), Is.True);
+            float depth = camera.WorldToScreenPoint(b.Enemy.transform.position).z;
+            camera.transform.position += b.Enemy.transform.position - camera.ScreenToWorldPoint(new Vector3(point.x, point.y, depth));
+            Physics.SyncTransforms();
+            Assert.That(Physics.Raycast(camera.ScreenPointToRay(point), out var hit, 1000), Is.True);
+            Assert.That(hit.collider.GetComponentInParent<BattleUnit>(), Is.SameAs(b.Enemy), "An enemy must actually lie behind the panel.");
+            yield return Click(b.Enemy.transform.position);
+            Assert.That(input.SelectedUnit, Is.SameAs(b.Player));
+            Assert.That(input.TargetUnit, Is.Null);
         }
         [UnityTest] public IEnumerator AttackModeEnemyClickStillTargetsWithoutReplacingActingAlly()
         {

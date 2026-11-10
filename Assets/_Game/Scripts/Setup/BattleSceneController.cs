@@ -17,6 +17,7 @@ namespace MechaXCOM
         [SerializeField] private CombatSystem combatSystem;
         [SerializeField] private TurnManager turnManager;
         [SerializeField] private EnemyAIController enemyAI;
+        [SerializeField, InspectorName("선택 기체 정보 패널")] private SelectedUnitInfoPanel unitInfoPanelPrefab;
         private bool initialized;
         public void ConfigureCombat(CombatSystem combat, TurnManager turns)
         { combatSystem = combat; turnManager = turns; }
@@ -116,8 +117,20 @@ namespace MechaXCOM
                 decisions.Initialize(turnManager.Overwatch, inputController, inputController.GetComponent<BodyTargetUI>());
             }
             if (debugUI && inputController && turnManager) debugUI.InitializeCombat(inputController, turnManager);
+            if (unitInfoPanelPrefab && debugUI && turnManager)
+            {
+                var panel = Instantiate(unitInfoPanelPrefab, transform);
+                panel.Initialize(debugUI, turnManager); debugUI.ConfigureUnitInfoPanel(panel);
+                if (!FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>())
+                {
+                    var events = new GameObject("Battle UI Events", typeof(UnityEngine.EventSystems.EventSystem),
+                        typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule));
+                    events.transform.SetParent(transform, false);
+                }
+            }
             if (battleCamera)
             {
+                if (battleCamera.TryGetComponent<BattleCameraOrbit>(out var uiOrbit)) uiOrbit.ConfigureUI(debugUI);
                 var background = GetComponent<BattleViewportBackground>() ?? gameObject.AddComponent<BattleViewportBackground>();
                 background.Initialize(battleCamera);
             }

@@ -85,7 +85,13 @@ namespace MechaXCOM.Tests
         {
             yield return Load(false); var combat=Object.FindFirstObjectByType<CombatSystem>(); combat.SetDamageRollSource((min,max)=>min);
             Assert.That(input.SelectUnit(actor),Is.True); Assert.That(input.BeginWeaponAttack(WeaponSlot.LeftHand),Is.True);
+            // Focus the runtime camera so the wider overlay cannot hide the station click.
+            var orbit=Camera.main.GetComponent<BattleCameraOrbit>(); Assert.That(orbit.TryFocus(station.Collider.bounds.center),Is.True);
+            float focusUntil=Time.realtimeSinceStartup+2;
+            while((bool)typeof(BattleCameraOrbit).GetField("focusing",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(orbit) && Time.realtimeSinceStartup<focusUntil) yield return null;
+            yield return null;
             var point=Camera.main.WorldToScreenPoint(station.Collider.bounds.center);
+            Assert.That(Object.FindFirstObjectByType<BattleDebugUI>().ContainsScreenPoint(point),Is.False);
             Assert.That(Camera.main.pixelRect.Contains(point),Is.True); Physics.SyncTransforms();
             mouse=InputSystem.AddDevice<Mouse>();
             InputSystem.QueueStateEvent(mouse,new MouseState{position=point}.WithButton(MouseButton.Left)); yield return null;

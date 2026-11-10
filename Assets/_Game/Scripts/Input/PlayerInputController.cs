@@ -249,6 +249,7 @@ namespace MechaXCOM
         }
         private void HandleOverwatchDecisionClick(Vector2 point)
         {
+            if (debugUI && debugUI.IsPointerOverUnitPanel(point)) return;
             // A double-click belongs to the dialog it started on, even if the next
             // watcher is already displayed when its second press arrives.
             if (Time.unscaledTime - lastOverwatchDecisionClickTime <= doubleClickInterval &&
@@ -346,6 +347,7 @@ namespace MechaXCOM
             }
             if (turns && turns.IsBattleOver) { target = null; ActionMode = UnitActionMode.Menu; IsAttackMenuOpen = false; ClearWeaponSelection(); visualizer.ClearReachableCells(); return; }
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
+            if (debugUI.IsPointerOverUnitPanel(Mouse.current.position.ReadValue())) { ResetClickSequence(); return; }
             if (pending)
             {
                 ResetClickSequence();
