@@ -5,6 +5,8 @@ namespace MechaXCOM
     public struct CoverAttackPreview
     {
         public bool CanAttack;
+        public bool UsesAmmo;
+        public AttackType Type;
         public string FailureReason, WeaponName;
         public CoverObject Target;
         public Vector2Int ImpactCell;

@@ -5,11 +5,27 @@ namespace MechaXCOM
     public class BattleDebugUI : MonoBehaviour
     {
         [SerializeField] private Rect panelRect = new Rect(16, 16, 270, 306);
+        [SerializeField, InspectorName("기본 파일럿 초상화")] private Sprite fallbackPortrait;
         private GridManager grid;
         private CoverSystem coverSystem;
         private BattleUnit selected;
         private PlayerInputController input;
         private TurnManager turns;
+        public BattleUnit DisplayedUnit => selected && selected.isActiveAndEnabled && selected.IsAlive &&
+            (selected.Team == UnitTeam.Player || (turns && turns.Visibility && turns.Visibility.IsVisibleTo(UnitTeam.Player, selected)))
+            ? selected : null;
+        public string MechaName => UnitInspectionText.Name(DisplayedUnit);
+        public string EquipmentText => UnitInspectionText.Equipment(DisplayedUnit);
+        public string PartHealthText => UnitInspectionText.Health(DisplayedUnit);
+        public Sprite PilotPortrait
+        {
+            get
+            {
+                var unit = DisplayedUnit;
+                if (!isActiveAndEnabled || !unit) return null;
+                return unit.PilotData && unit.PilotData.DefaultPortrait ? unit.PilotData.DefaultPortrait : fallbackPortrait;
+            }
+        }
         public BattleUnit VisibleActingEnemy => turns && turns.Visibility &&
             turns.Visibility.IsVisibleTo(UnitTeam.Player, turns.ActiveEnemy) ? turns.ActiveEnemy : null;
         public bool CanEndTurn => isActiveAndEnabled && input && input.isActiveAndEnabled && turns &&
@@ -25,9 +41,14 @@ namespace MechaXCOM
             this.grid = grid;
             this.coverSystem = coverSystem;
         }
-        public void SetSelectedUnit(BattleUnit unit) => selected = unit;
+        public void SetSelectedUnit(BattleUnit unit)
+        {
+            if (selected != unit) scrollPosition = Vector2.zero;
+            selected = unit;
+        }
         public float GetIncomingCoverMultiplier(CoverDirection direction)
         {
+            var selected = DisplayedUnit;
             if (!selected || !grid || !coverSystem ||
                 !grid.TryGetCell(selected.CurrentGridPosition, out var cell)) return 1;
             return coverSystem.GetAttackCoverMultiplier(cell, direction);
@@ -43,6 +64,13 @@ namespace MechaXCOM
         private void OnGUI()
         {
             if (!grid || !coverSystem) return;
+            bool originalGUIEnabled = GUI.enabled;
+            bool turnLocked = turns && turns.IsPresentingTurn;
+            GUI.enabled = originalGUIEnabled && !turnLocked;
+            // Scroll views can process wheel events even with GUI.enabled=false.
+            if (turnLocked && (Event.current.isMouse || Event.current.isKey || Event.current.type == EventType.ScrollWheel))
+                Event.current.Use();
+            var selected = DisplayedUnit;
             if (titleStyle == null)
             {
                 titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 19, fontStyle = FontStyle.Bold };
@@ -52,16 +80,23 @@ namespace MechaXCOM
             }
             var oldMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.Scale(new Vector3(DisplayScale, DisplayScale, 1));
-            var oldBackground = GUI.backgroundColor;
-            GUI.backgroundColor = new Color(0.1f, 0.14f, 0.14f, 0.95f);
-            GUI.Box(DisplayRect, GUIContent.none);
-            GUI.backgroundColor = oldBackground;
+            var oldColor = GUI.color;
+            GUI.color = new Color32(25, 42, 70, 255);
+            GUI.DrawTexture(DisplayRect, Texture2D.whiteTexture);
+            GUI.color = oldColor;
             GUILayout.BeginArea(new Rect(DisplayRect.x + 14, DisplayRect.y + 10, DisplayRect.width - 28, DisplayRect.height - 20));
             scrollPosition = GUILayout.BeginScrollView(scrollPosition);
             ResourceTypography.LayoutLabel("GROUND TACTICS / LAB", titleStyle);
             if (turns)
             {
                 ResourceTypography.LayoutLabel($"Turn: {turns.TurnNumber} / {turns.ActiveTeam}", textStyle);
+                if (turns.Mission && turns.Mission.Data)
+                {
+                    ResourceTypography.LayoutLabel(turns.Mission.Data.DisplayName, titleStyle);
+                    ResourceTypography.LayoutLabel(turns.Mission.Data.RegionName, textStyle);
+                    var objective = turns.Mission.Objective;
+                    if (objective != null) ResourceTypography.LayoutLabel($"Destroyed: {objective.DestroyedCount} / {objective.TotalCount}", textStyle);
+                }
                 if (VisibleActingEnemy) ResourceTypography.LayoutLabel($"Acting: {VisibleActingEnemy.name}", textStyle);
                 var decision = turns.Overwatch ? turns.Overwatch.PendingDecision : null;
                 if (decision.HasValue)
@@ -77,6 +112,20 @@ namespace MechaXCOM
             }
             else
             {
+                ResourceTypography.LayoutLabel(MechaName, new GUIStyle(titleStyle) { wordWrap = true });
+                ResourceTypography.LayoutLabel(selected.Team == UnitTeam.Player ? "ALLY" : "ENEMY / INSPECT ONLY", textStyle);
+                var portraitRect = GUILayoutUtility.GetRect(1, 160, GUILayout.ExpandWidth(true));
+                var portrait = PilotPortrait;
+                if (portrait)
+                {
+                    float aspect = portrait.rect.width / portrait.rect.height;
+                    float height = Mathf.Min(portraitRect.height, portraitRect.width / aspect);
+                    var fitted = new Rect(portraitRect.center.x - height * aspect / 2,
+                        portraitRect.center.y - height / 2, height * aspect, height);
+                    var uv = UnityEngine.Sprites.DataUtility.GetOuterUV(portrait);
+                    GUI.DrawTextureWithTexCoords(fitted, portrait.texture, new Rect(uv.x, uv.y, uv.z - uv.x, uv.w - uv.y));
+                }
+                else GUI.Label(portraitRect, "Portrait unavailable", textStyle);
                 if (selected.Health)
                 {
                     ResourceTypography.LayoutLabel($"{selected.Health.State.ToString().ToUpperInvariant()} / AP {selected.ActionPoints.CurrentPoints}/{selected.ActionPoints.MaxPoints}", textStyle);
@@ -87,12 +136,13 @@ namespace MechaXCOM
                         for (int j = i; j < Mathf.Min(i + 2, 7); j++)
                         {
                             var part = (TargetBodyPart)(j + 1);
-                            ResourceTypography.LayoutLabel($"{BodyTargetRules.Label(part)} {selected.Health.GetCurrentHP(part)}/{selected.Health.GetMaxHP(part)}",
+                            ResourceTypography.LayoutLabel(UnitInspectionText.PartHP(selected, part),
                                 hpStyle, GUILayout.Width((DisplayRect.width - 28) / 2));
                         }
                         GUILayout.EndHorizontal();
                     }
                 }
+                ResourceTypography.LayoutLabel(EquipmentText, new GUIStyle(textStyle) { wordWrap = true });
                 ResourceTypography.LayoutLabel($"Cell: ({selected.CurrentGridPosition.x}, {selected.CurrentGridPosition.y})", textStyle);
                 ResourceTypography.LayoutLabel($"Moved: {selected.Mobility.MovedCells} Cells", textStyle);
                 ResourceTypography.LayoutLabel($"Facing: {selected.Facing}", textStyle);
@@ -156,6 +206,7 @@ namespace MechaXCOM
                     ResourceTypography.LayoutLabel(input.ActionMode == UnitActionMode.Move ? "Choose a destination in the teal range." :
                         input.ActionMode == UnitActionMode.Attack ? "Select an enemy in the red range." :
                         selected && selected.Health.State == MechState.Critical ? "CRITICAL: Eject costs 1 AP." :
+                        selected && selected.Team == UnitTeam.Enemy ? "Enemy inspection only. Select an ally to act." :
                         "Choose Move / Attack / Overwatch / Eject beside the unit.", textStyle);
                 bool oldEnabled = GUI.enabled;
                 GUI.enabled = oldEnabled && CanEndTurn;
@@ -170,11 +221,15 @@ namespace MechaXCOM
                 }
                 if (!string.IsNullOrEmpty(input.InputMessage)) ResourceTypography.LayoutLabel(input.InputMessage, textStyle);
                 if (turns.IsBattleOver)
-                    ResourceTypography.LayoutLabel(turns.IsPlayerVictory ? "ENEMY DEFEATED\nRestart Play to try again." : "PLAYER DEFEATED", titleStyle);
+                {
+                    ResourceTypography.LayoutLabel(turns.IsPlayerVictory ? "MISSION SUCCESS\nRestart Play to try again." : "MISSION FAILED", titleStyle);
+                    if (turns.Mission) ResourceTypography.LayoutLabel(turns.Mission.Result.Reason, textStyle);
+                }
             }
             GUILayout.EndScrollView();
             GUILayout.EndArea();
             GUI.matrix = oldMatrix;
+            GUI.enabled = originalGUIEnabled;
         }
     }
 }

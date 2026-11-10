@@ -23,6 +23,7 @@ namespace MechaXCOM.Tests
             byte[] original = File.ReadAllBytes(path);
             EditorSceneManager.LoadSceneInPlayMode(path, new LoadSceneParameters(LoadSceneMode.Single));
             yield return null; yield return null;
+            yield return TurnBannerTestSupport.Finish(Object.FindFirstObjectByType<TurnManager>());
             try
             {
                 var turns = Object.FindFirstObjectByType<TurnManager>();

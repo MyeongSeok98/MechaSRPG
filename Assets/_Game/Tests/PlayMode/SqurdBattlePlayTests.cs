@@ -31,6 +31,7 @@ namespace MechaXCOM.Tests
             Assert.That(players.Length, Is.EqualTo(3)); Assert.That(enemies.Length, Is.EqualTo(3));
             Assert.That(units.All(u => u.IsAlive), Is.True);
             turns = Object.FindFirstObjectByType<TurnManager>();
+            yield return TurnBannerTestSupport.Finish(turns);
             input = Object.FindFirstObjectByType<PlayerInputController>();
             combat = Object.FindFirstObjectByType<CombatSystem>();
             combat.SetRollSource(() => 0);
@@ -49,7 +50,7 @@ namespace MechaXCOM.Tests
         private IEnumerator WaitForPlayerTurn()
         {
             float deadline = Time.realtimeSinceStartup + 20;
-            while (!turns.IsPlayerTurn && !turns.IsBattleOver && Time.realtimeSinceStartup < deadline)
+            while ((!turns.IsPlayerTurn || turns.IsPresentingTurn) && !turns.IsBattleOver && Time.realtimeSinceStartup < deadline)
             {
                 Assert.That(enemies.Count(e => e && e.Movement.IsMoving), Is.LessThanOrEqualTo(1));
                 yield return null;

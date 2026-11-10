@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64b69c37a5b84cd496b9d9043fef275e, type: 3}
+  m_Name: SampleDestroyStationMission
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.MissionData
+  missionId: sample_destroy_station
+  displayName: 통신소 파괴
+  description: 지정 통신소를 파괴하라. 적 기체 격파는 필수가 아니다.
+  regionName: 남부 폐허
+  objectiveType: 1
+  targetEnemyGroupId:
+  targetObjectId: CommunicationStation_A

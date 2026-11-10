@@ -49,6 +49,12 @@ namespace MechaXCOM
                 Debug.LogWarning($"{name}: missing GridManager or CoverSystem; battle initialization stopped.", this);
                 return false;
             }
+            if (turnManager && turnManager.TryGetComponent<MissionController>(out var mission) &&
+                !mission.ValidateSetup(units, out var missionReason))
+            {
+                Debug.LogWarning($"{name}: {missionReason} 전투 시작을 중단합니다.", this);
+                return false;
+            }
             // Check the complete roster before mutating grid, resources or turn state.
             if (units != null)
                 foreach (var unit in units)
@@ -91,6 +97,7 @@ namespace MechaXCOM
                 overwatch.Initialize(grid, combatSystem, turnManager, units);
             }
             if (turnManager) turnManager.Initialize(units);
+            if (turnManager && !turnManager.IsInitialized) return false;
             if (combatSystem && turnManager && battleCamera)
             {
                 var feedback = GetComponent<CombatFeedbackPresenter>() ?? gameObject.AddComponent<CombatFeedbackPresenter>();
@@ -109,6 +116,17 @@ namespace MechaXCOM
                 decisions.Initialize(turnManager.Overwatch, inputController, inputController.GetComponent<BodyTargetUI>());
             }
             if (debugUI && inputController && turnManager) debugUI.InitializeCombat(inputController, turnManager);
+            if (battleCamera)
+            {
+                var background = GetComponent<BattleViewportBackground>() ?? gameObject.AddComponent<BattleViewportBackground>();
+                background.Initialize(battleCamera);
+            }
+            if (turnManager && battleCamera)
+            {
+                if (battleCamera.TryGetComponent<BattleCameraOrbit>(out var orbit)) orbit.ConfigureTurns(turnManager);
+                var banner = GetComponent<TurnBannerPresenter>() ?? gameObject.AddComponent<TurnBannerPresenter>();
+                banner.Initialize(turnManager);
+            }
             initialized = true;
             return true;
         }

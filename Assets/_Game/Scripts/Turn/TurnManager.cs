@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MechaXCOM
 {
-    public class TurnManager : MonoBehaviour
+    public partial class TurnManager : MonoBehaviour
     {
         private BattleUnit[] units = Array.Empty<BattleUnit>();
         private bool initialized;
@@ -34,6 +34,10 @@ namespace MechaXCOM
         public BattleUnit ActiveEnemy { get; private set; }
         public bool IsBattleOver { get; private set; }
         public bool IsPlayerVictory { get; private set; }
+        public MissionController Mission { get; private set; }
+        public bool IsInitialized => initialized;
+        internal bool CanResolveMission => initialized && isActiveAndEnabled && !IsBattleOver &&
+            damageResolutionDepth == 0 && !IsPresentingAttack;
         public VisibilitySystem Visibility { get; private set; }
         public void ConfigureVisibility(VisibilitySystem visibility) => Visibility = visibility;
         public BattleUnit PendingFacingUnit
@@ -45,7 +49,7 @@ namespace MechaXCOM
                 return null;
             }
         }
-        public bool IsAnyUnitBusy => damageResolutionDepth > 0 || IsPresentingAttack || IsAnyUnitMoving || PendingFacingUnit || (overwatch && overwatch.IsResolving);
+        public bool IsAnyUnitBusy => damageResolutionDepth > 0 || IsPresentingTurn || IsPresentingAttack || IsAnyUnitMoving || PendingFacingUnit || (overwatch && overwatch.IsResolving);
         public bool IsAnyUnitMoving
         {
             get
@@ -58,7 +62,19 @@ namespace MechaXCOM
         public void Initialize(BattleUnit[] units)
         {
             if (initialized) return;
-            this.units = units == null ? Array.Empty<BattleUnit>() : (BattleUnit[])units.Clone();
+            var roster = units == null ? Array.Empty<BattleUnit>() : (BattleUnit[])units.Clone();
+            Mission = GetComponent<MissionController>();
+            if (!Mission)
+            {
+                Mission = gameObject.AddComponent<MissionController>();
+                Mission.EnableLegacyEliminationVictory();
+            }
+            if (!Mission.Initialize(this, roster, out var reason))
+            {
+                Debug.LogWarning($"{name}: {reason} 전투 시작을 중단합니다.", this);
+                return;
+            }
+            this.units = roster;
             initialized = true;
             TurnNumber = 1;
             foreach (var unit in this.units)
@@ -113,13 +129,14 @@ namespace MechaXCOM
                     unit.Mobility.ResetMovement();
                 }
             if (Visibility) Visibility.Refresh();
+            TurnStarted?.Invoke(team);
         }
         private void Update() { if (!IsPresentingAttack) CheckBattleEnd(); ResumeEnemyPhase(); }
         private void OnEnable() => ResumeEnemyPhase();
         private void ResumeEnemyPhase()
         {
             if (Application.isPlaying && initialized && isActiveAndEnabled && !IsBattleOver && !IsPlayerTurn &&
-                enemyRoutine == null && !IsPresentingAttack && enemyAI && enemyAI.IsReady)
+                enemyRoutine == null && !IsPresentingTurn && !IsPresentingAttack && enemyAI && enemyAI.IsReady)
                 enemyRoutine = StartCoroutine(ExecuteEnemyPhase());
         }
         private IEnumerator ExecuteEnemyPhase()
@@ -128,6 +145,8 @@ namespace MechaXCOM
             yield return null;
             while (nextEnemyIndex < units.Length && !IsBattleOver)
             {
+                while (IsPresentingTurn) yield return null;
+                if (IsBattleOver) break;
                 if (!enemyAI || !enemyAI.IsReady) break;
                 var actor = units[nextEnemyIndex++];
                 if (!actor || actor.Team != UnitTeam.Enemy || !actor.isActiveAndEnabled || !actor.IsAlive || !actor.Health.CanFight) continue;
@@ -169,6 +188,7 @@ namespace MechaXCOM
         }
         private void OnDisable()
         {
+            ClearTurnPresentation();
             feedbackOwner = null; feedbackUntil = 0;
             if (overwatch) overwatch.CancelAll();
             SuspendEnemyPhase();
@@ -182,20 +202,20 @@ namespace MechaXCOM
         }
         public void CheckBattleEnd()
         {
-            if (!initialized || IsBattleOver || damageResolutionDepth > 0 || IsPresentingAttack) return;
-            bool playerAlive = false, enemyAlive = false;
-            foreach (var unit in units)
-            {
-                if (!unit || !unit.IsAlive) continue;
-                if (unit.Team == UnitTeam.Player) playerAlive = true;
-                else enemyAlive = true;
-            }
-            if (playerAlive && enemyAlive) return;
+            if (CanResolveMission && Mission) Mission.Evaluate();
+        }
+        internal bool FinishMission(MissionController source, MissionResult result)
+        {
+            if (!CanResolveMission || source != Mission ||
+                (result.Outcome != MissionOutcome.Success && result.Outcome != MissionOutcome.Failure)) return false;
             IsBattleOver = true;
+            IsPlayerVictory = result.Outcome == MissionOutcome.Success;
+            ClearTurnPresentation();
+            feedbackOwner = null; feedbackUntil = 0;
             if (overwatch) overwatch.CancelAll();
             CancelUnitActions();
-            IsPlayerVictory = playerAlive && !enemyAlive;
             SuspendEnemyPhase();
+            return true;
         }
         private void OnDestroy()
         {

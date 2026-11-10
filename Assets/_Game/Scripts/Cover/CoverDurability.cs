@@ -7,17 +7,24 @@ namespace MechaXCOM
     public class CoverDurability : MonoBehaviour
     {
         [SerializeField, Min(1), InspectorName("최대 HP")] private int maxHP = 1000;
+        [SerializeField, InspectorName("오브젝트 데이터 (선택)")] private DestructibleObjectData objectData;
         private bool initialized;
         private int initialMaxHP, currentHP;
         public int MaxHP { get { Initialize(); return initialMaxHP; } }
         public int CurrentHP { get { Initialize(); return currentHP; } }
         public bool IsDestroyed => CurrentHP == 0;
+        public DestructibleObjectData Data => objectData;
+        public bool ConfigureData(DestructibleObjectData data)
+        {
+            if (initialized || !data || !data.IsValid(out _)) return false;
+            objectData = data; return true;
+        }
         public event Action Changed;
         public event Action Destroyed;
         public void Initialize()
         {
             if (initialized) return;
-            initialized = true; initialMaxHP = Mathf.Max(1, maxHP); currentHP = initialMaxHP;
+            initialized = true; initialMaxHP = Mathf.Max(1, objectData ? objectData.MaxHP : maxHP); currentHP = initialMaxHP;
         }
         public int ApplyDamage(int amount)
         {

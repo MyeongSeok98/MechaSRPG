@@ -2,6 +2,8 @@ using UnityEngine;
 
 namespace MechaXCOM
 {
+    public enum PortraitExpression { Default, Laugh, Damaged }
+
     // 파일럿의 초기 정의만 저장한다. 성장한 능력치와 전투 중 상태는 별도 책임이다.
     [CreateAssetMenu(fileName = "NewCharacter", menuName = "MechaXCOM/Character Data")]
     public class CharacterData : ScriptableObject
@@ -14,6 +16,25 @@ namespace MechaXCOM
         [SerializeField, InspectorName("근접"), Min(0)] private int melee;
         [SerializeField, InspectorName("기량"), Min(0)] private int technique;
         [SerializeField, InspectorName("회피"), Min(0)] private int evasion;
+
+        // Folder lookup is authoring-only. Builds use the serialized Sprite references below.
+#if UNITY_EDITOR
+        [SerializeField, HideInInspector] private Object portraitFolder;
+#endif
+        [SerializeField, HideInInspector] private Sprite defaultPortrait;
+        [SerializeField, HideInInspector] private Sprite laughPortrait;
+        [SerializeField, HideInInspector] private Sprite damagedPortrait;
+
+        public Sprite DefaultPortrait => defaultPortrait;
+        public Sprite GetPortrait(PortraitExpression expression)
+        {
+            switch (expression)
+            {
+                case PortraitExpression.Laugh: return laughPortrait ? laughPortrait : defaultPortrait;
+                case PortraitExpression.Damaged: return damagedPortrait ? damagedPortrait : defaultPortrait;
+                default: return defaultPortrait;
+            }
+        }
 
         public string CharacterId => characterId;
         public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;

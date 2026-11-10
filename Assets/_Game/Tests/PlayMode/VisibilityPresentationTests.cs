@@ -60,6 +60,7 @@ namespace MechaXCOM.Tests
             Assert.That(controller.InitializeBattle(), Is.True);
             Physics.SyncTransforms();
             yield return null;
+            yield return TurnBannerTestSupport.Finish(turns);
         }
         private BattleUnit Unit(Vector2Int position, UnitTeam team, int range)
         {

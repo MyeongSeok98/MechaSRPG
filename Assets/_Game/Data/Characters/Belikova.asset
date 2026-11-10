@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71dff1c056b14eb2ab45d5f821dc213d, type: 3}
+  m_Name: Belikova
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.CharacterData
+  characterId: Belikova
+  displayName: Belikova
+  description: "\uACFC\uAC70 \uCE74\uC2A4\uD1A0\uD504 \uC5F0\uBC29\uC5D0\uC11C \uADFC\uBB34\uD558\uB358
+    \uD30C\uC77C\uB7FF."
+  initialLevel: 1
+  shooting: 15
+  melee: 10
+  technique: 12
+  evasion: 11
+  portraitFolder: {fileID: 102900000, guid: 9c13f61a4b96d524eb985ed0d5f66bf3, type: 3}
+  defaultPortrait: {fileID: 21300000, guid: dc3d6e073959f2043bb835f6afbd3362, type: 3}
+  laughPortrait: {fileID: 0}
+  damagedPortrait: {fileID: 0}

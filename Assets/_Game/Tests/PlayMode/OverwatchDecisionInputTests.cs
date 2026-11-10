@@ -78,16 +78,20 @@ namespace MechaXCOM.Tests
                 int count = (int)gameViewGroup.GetType().GetMethod("GetCustomCount").Invoke(gameViewGroup, null);
                 for (int i = count - 1; i >= originalCustomCount; i--)
                     gameViewGroup.GetType().GetMethod("RemoveCustomSize").Invoke(gameViewGroup, new object[] { builtinCount + i });
+                Assert.That((int)sizeSelection.GetValue(gameView), Is.EqualTo(oldSizeIndex));
+                Assert.That((int)gameViewGroup.GetType().GetMethod("GetCustomCount").Invoke(gameViewGroup, null), Is.EqualTo(originalCustomCount));
                 gameView.Close(); gameViewGroup = null; gameView = null; sizeSelection = null;
             }
 #endif
             Screen.SetResolution(oldWidth, oldHeight, oldScreenMode);
             battle?.Dispose(); yield return null;
+#if !UNITY_EDITOR
             if (capturedView)
             {
                 Assert.That(Screen.width, Is.EqualTo(oldWidth));
                 Assert.That(Screen.height, Is.EqualTo(oldHeight));
             }
+#endif
         }
         private T Read<T>(string name) => (T)controller.GetType().GetProperty(name).GetValue(controller);
         private Rect SkipRect

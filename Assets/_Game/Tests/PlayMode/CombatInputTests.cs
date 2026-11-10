@@ -90,7 +90,8 @@ namespace MechaXCOM.Tests
         [UnityTest]
         public IEnumerator EnemyClickKeepsPlayerSelection()
         {
-            Assert.That(input.SelectUnit(enemy), Is.False);
+            Assert.That(input.SelectUnit(enemy), Is.True);
+            Assert.That(input.CanChooseAction, Is.False);
             Assert.That(SelectAttackTarget(enemy), Is.False);
             Assert.That(input.SelectUnit(player), Is.True); ui.enabled = false;
             Assert.That(input.BeginAttack(), Is.True);

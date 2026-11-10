@@ -26,7 +26,7 @@ namespace MechaXCOM.Tests
         [Test] public void OnlyApprovedBattleScenesRemainAndAllUnitsUseWeaponData()
         {
             var paths = Directory.GetFiles("Assets/_Game/Scenes", "*.unity").Select(Path.GetFileNameWithoutExtension).OrderBy(p => p).ToArray();
-            CollectionAssert.AreEquivalent(new[] { "1V1Test", "SqurdWeaponTest" }, paths);
+            CollectionAssert.AreEquivalent(new[] { "1V1Test", "SqurdWeaponTest", "EliminationMissionTest", "DestroyCommunicationStationTest" }, paths);
             foreach (var name in paths)
             {
                 var scene = EditorSceneManager.OpenScene("Assets/_Game/Scenes/" + name + ".unity", OpenSceneMode.Additive);

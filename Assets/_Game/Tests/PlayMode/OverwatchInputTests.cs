@@ -72,24 +72,28 @@ namespace MechaXCOM.Tests
             if (gameViewGroup != null)
             {
                 capturedView = true;
-                // Batch mode retains the last rendered dimensions after the Game View closes.
-                // Render the original size before restoring its editor selection and closing it.
+                // Restore the editor selection/custom entries. Closing a Game View can
+                // change Screen dimensions; each world-click fixture sets its own resolution.
                 yield return SetViewSize(oldWidth, oldHeight);
                 sizeSelection.SetValue(gameView, oldSizeIndex);
                 int count = (int)gameViewGroup.GetType().GetMethod("GetCustomCount").Invoke(gameViewGroup, null);
                 for (int i = count - 1; i >= originalCustomCount; i--)
                     gameViewGroup.GetType().GetMethod("RemoveCustomSize").Invoke(gameViewGroup, new object[] { builtinCount + i });
+                Assert.That((int)sizeSelection.GetValue(gameView), Is.EqualTo(oldSizeIndex));
+                Assert.That((int)gameViewGroup.GetType().GetMethod("GetCustomCount").Invoke(gameViewGroup, null), Is.EqualTo(originalCustomCount));
                 gameView.Close();
                 gameViewGroup = null; gameView = null; sizeSelection = null;
             }
 #endif
             Screen.SetResolution(oldWidth, oldHeight, oldScreenMode);
             battle.Dispose(); yield return null;
+#if !UNITY_EDITOR
             if (capturedView)
             {
                 Assert.That(Screen.width, Is.EqualTo(oldWidth), "Capture must restore the following tests' screen width.");
                 Assert.That(Screen.height, Is.EqualTo(oldHeight), "Capture must restore the following tests' screen height.");
             }
+#endif
         }
         private object Read(object owner, string property)
         {

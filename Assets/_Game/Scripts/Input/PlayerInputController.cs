@@ -13,7 +13,7 @@ namespace MechaXCOM
         public bool HasPendingOverwatchDecision => overwatchDecision && overwatchDecision.IsPending;
         internal bool IsReadyForOverwatch(OverwatchDecisionController controller) => isActiveAndEnabled &&
             overwatchDecision == controller && battleCamera && grid && visualizer && debugUI &&
-            combat && combat.isActiveAndEnabled && turns && turns.isActiveAndEnabled;
+            combat && combat.isActiveAndEnabled && turns && turns.isActiveAndEnabled && !turns.IsPresentingTurn;
         public void ConfigureOverwatchDecision(OverwatchDecisionController controller)
         {
             if (overwatchDecision && overwatchDecision != controller) overwatchDecision.Suspend();
@@ -159,7 +159,7 @@ namespace MechaXCOM
         private int observedAP = -1;
         private int observedMovementRange = -1;
         private bool wasMoving;
-        public BattleUnit SelectedUnit => selected ? selected : null;
+        public BattleUnit SelectedUnit => selected && (selected.Team == UnitTeam.Player || IsTargetSelectable(selected)) ? selected : null;
         public BattleUnit TargetUnit => IsTargetSelectable(target) ? target : null;
         public AttackType SelectedAttackType { get; private set; } = AttackType.Ranged;
         public TargetBodyPart SelectedBodyPart { get; private set; } = TargetBodyPart.Whole;
@@ -177,8 +177,10 @@ namespace MechaXCOM
         public bool IsAttackMenuOpen { get; private set; }
         public FacingDirection SelectedFacing { get; private set; }
         public bool CanChooseFacing => isActiveAndEnabled && PlayerActionsAllowed && selected &&
+            selected.Team == UnitTeam.Player &&
             ActionMode == UnitActionMode.Facing && selected.CanResolveFacing;
         public bool IsFacingPanelVisible => isActiveAndEnabled && PlayerActionsAllowed && selected &&
+            selected.Team == UnitTeam.Player &&
             selected.isActiveAndEnabled && selected.HasPendingFacing && ActionMode == UnitActionMode.Facing;
         public bool TryChooseFacing(FacingDirection facing)
         {
@@ -189,6 +191,7 @@ namespace MechaXCOM
         public bool TryConfirmFacing() => CanChooseFacing && selected.Movement.TryConfirmFacing(SelectedFacing);
         public bool CanManageSelectedUnit => isActiveAndEnabled && PlayerActionsAllowed && !Busy &&
             (!turns || turns.isActiveAndEnabled) && selected && selected.isActiveAndEnabled && selected.IsAlive &&
+            selected.Team == UnitTeam.Player &&
             grid && grid.TryGetCell(selected.CurrentGridPosition, out var cell) && cell.OccupyingUnit == selected;
         public bool CanChooseAction => CanManageSelectedUnit && selected.CanTakeAction;
         public bool CanEjectSelected => CanManageSelectedUnit && selected.CanEject;
@@ -214,7 +217,7 @@ namespace MechaXCOM
             return false;
         }
         private bool Busy => turns ? turns.IsAnyUnitBusy : selected && selected.Movement && (selected.Movement.IsMoving || selected.HasPendingFacing);
-        private bool PlayerActionsAllowed => !turns || (turns.IsPlayerTurn && !turns.IsBattleOver);
+        private bool PlayerActionsAllowed => !turns || (turns.IsPlayerTurn && !turns.IsBattleOver && !turns.IsPresentingTurn);
         public void InitializeCombat(CombatSystem combat, TurnManager turns)
         {
             UnsubscribeVisibility();
@@ -263,6 +266,8 @@ namespace MechaXCOM
         private void Update()
         {
             if (!battleCamera || !grid || !visualizer || !debugUI) return;
+            if (turns && turns.IsPresentingTurn)
+            { ResetClickSequence(); visualizer.ClearReachableCells(); return; }
             if (overwatchDecision && overwatchDecision.IsPending)
             {
                 ResetClickSequence(); visualizer.ClearReachableCells();
@@ -299,7 +304,7 @@ namespace MechaXCOM
                 return;
             }
             if (!ReferenceEquals(selected, null) && (!selected || !selected.isActiveAndEnabled ||
-                !selected.IsAlive || !selected.Movement || !selected.Movement.isActiveAndEnabled))
+                !selected.IsAlive || (selected.Team == UnitTeam.Enemy ? !IsTargetSelectable(selected) : !selected.Movement || !selected.Movement.isActiveAndEnabled)))
                 ClearSelection();
             if (!ReferenceEquals(target, null) && !IsTargetSelectable(target))
             {
@@ -375,7 +380,8 @@ namespace MechaXCOM
                 var unit = hit.collider.GetComponentInParent<BattleUnit>();
                 if (unit)
                 {
-                    if (unit.Team == UnitTeam.Enemy) { ResetClickSequence(); TrySelectTarget(unit); }
+                    if (unit.Team == UnitTeam.Enemy && ActionMode == UnitActionMode.Attack && selected && selected.Team == UnitTeam.Player)
+                    { ResetClickSequence(); TrySelectTarget(unit); }
                     else if (SelectUnit(unit))
                     {
                         float now = Time.unscaledTime;
@@ -408,8 +414,8 @@ namespace MechaXCOM
         }
         public bool SelectUnit(BattleUnit unit)
         {
-            if (!unit || !unit.isActiveAndEnabled || !unit.IsAlive || unit.Team != UnitTeam.Player ||
-                !unit.Movement || !unit.Movement.isActiveAndEnabled ||
+            if (!unit || !unit.isActiveAndEnabled || !unit.IsAlive ||
+                (unit.Team == UnitTeam.Enemy ? !IsTargetSelectable(unit) : !unit.Movement || !unit.Movement.isActiveAndEnabled) ||
                 Busy || (turns && turns.IsBattleOver) || !grid || !visualizer || !debugUI) return false;
             if (!grid.TryGetCell(unit.CurrentGridPosition, out var cell) || cell.OccupyingUnit != unit) return false;
             selected = unit;
@@ -464,7 +470,7 @@ namespace MechaXCOM
         }
         public bool TryMoveSelected(Vector2Int destination)
         {
-            if (ActionMode != UnitActionMode.Move || !isActiveAndEnabled || !PlayerActionsAllowed || Busy || !selected || !selected.Movement ||
+            if (ActionMode != UnitActionMode.Move || !isActiveAndEnabled || !PlayerActionsAllowed || Busy || !selected || selected.Team != UnitTeam.Player || !selected.Movement ||
                 !selected.Movement.TryMove(destination)) return false;
             ActionMode = UnitActionMode.Menu;
             target = null; InputMessage = null;
@@ -475,7 +481,7 @@ namespace MechaXCOM
         public bool TrySelectTarget(BattleUnit unit)
         {
             if (IsIndirectAttackSelected) return false;
-            if (!selected) { InputMessage = "Select the player first."; return false; }
+            if (!selected || selected.Team != UnitTeam.Player) { InputMessage = "Select the player first."; return false; }
             if (ActionMode != UnitActionMode.Attack || !SelectedWeaponSlot.HasValue || !isActiveAndEnabled || !PlayerActionsAllowed || Busy || !combat || !IsTargetSelectable(unit)) return false;
             if (target != unit) SelectedBodyPart = TargetBodyPart.Whole;
             ClearCoverAim();
@@ -532,7 +538,7 @@ namespace MechaXCOM
         {
             observedAP = selected ? selected.ActionPoints.CurrentPoints : -1;
             observedMovementRange = selected ? selected.AvailableMovementRange : -1;
-            if (!selected || !selected.CanTakeAction) { visualizer.ClearReachableCells(); return; }
+            if (!CanChooseAction) { visualizer.ClearReachableCells(); return; }
             if (ActionMode == UnitActionMode.Move && CanBeginMove)
                 visualizer.ShowReachableCells(Pathfinder.GetReachableCells(grid, selected));
             else if (ActionMode == UnitActionMode.Attack && CanBeginAttack)
@@ -569,6 +575,8 @@ namespace MechaXCOM
         }
         private void HandleVisibilityChanged()
         {
+            if (selected && selected.Team == UnitTeam.Enemy && !IsTargetSelectable(selected))
+            { if (visualizer && debugUI) ClearSelection(); return; }
             if (ActionMode == UnitActionMode.OverwatchFacing && visualizer) RefreshRange();
             if (ReferenceEquals(target, null) || IsTargetSelectable(target)) return;
             target = null;

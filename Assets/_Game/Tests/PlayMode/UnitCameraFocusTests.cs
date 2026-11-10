@@ -20,6 +20,36 @@ namespace MechaXCOM.Tests
         private Mouse mouse;
         private InputSettings.EditorInputBehaviorInPlayMode oldEditor;
         private InputSettings.BackgroundBehavior oldBackground;
+#if UNITY_EDITOR
+        private UnityEditor.EditorWindow testView;
+        private object viewSizeGroup;
+        private System.Reflection.PropertyInfo viewSelection;
+        private int savedViewSize, addedViewSize;
+        private IEnumerator SetTestResolution()
+        {
+            var assembly = typeof(UnityEditor.Editor).Assembly;
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+            var sizesType = assembly.GetType("UnityEditor.GameViewSizes");
+            var singleton = typeof(UnityEditor.ScriptableSingleton<>).MakeGenericType(sizesType);
+            var sizes = singleton.GetProperty("instance").GetValue(null);
+            var groupType = sizesType.GetProperty("currentGroupType", flags).GetValue(sizes);
+            viewSizeGroup = sizesType.GetMethod("GetGroup").Invoke(sizes, new[] { groupType });
+            var viewType = assembly.GetType("UnityEditor.GameView");
+            testView = UnityEditor.EditorWindow.GetWindow(viewType);
+            viewSelection = viewType.GetProperty("selectedSizeIndex", flags);
+            savedViewSize = (int)viewSelection.GetValue(testView);
+            int builtins = (int)viewSizeGroup.GetType().GetMethod("GetBuiltinCount").Invoke(viewSizeGroup, null);
+            int custom = (int)viewSizeGroup.GetType().GetMethod("GetCustomCount").Invoke(viewSizeGroup, null);
+            addedViewSize = builtins + custom;
+            var size = System.Activator.CreateInstance(assembly.GetType("UnityEditor.GameViewSize"),
+                new object[] { System.Enum.Parse(assembly.GetType("UnityEditor.GameViewSizeType"), "FixedResolution"), 1280, 720, "Camera focus fixture" });
+            viewSizeGroup.GetType().GetMethod("AddCustomSize").Invoke(viewSizeGroup, new[] { size });
+            viewSelection.SetValue(testView, addedViewSize); testView.Repaint();
+            float deadline = Time.realtimeSinceStartup + 5;
+            while ((Screen.width != 1280 || Screen.height != 720) && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(Screen.width, Is.EqualTo(1280)); Assert.That(Screen.height, Is.EqualTo(720));
+        }
+#endif
 
         // Exercise the same explicit action choice as the unit menu.
         private bool MoveSelected(Vector2Int destination)
@@ -29,6 +59,10 @@ namespace MechaXCOM.Tests
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+#if UNITY_EDITOR
+            // This fixture positions units for a landscape viewport; do not inherit a prior capture window's aspect.
+            yield return SetTestResolution();
+#endif
             oldEditor = InputSystem.settings.editorInputBehaviorInPlayMode;
             oldBackground = InputSystem.settings.backgroundBehavior;
             InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
@@ -55,6 +89,10 @@ namespace MechaXCOM.Tests
             ui = root.AddComponent<BattleDebugUI>(); ui.Initialize(grid, covers); ui.enabled = false;
             input = root.AddComponent<PlayerInputController>(); input.Initialize(camera, grid, visualizer, ui);
             input.InitializeCombat(combat, turns);
+            // Actions are invoked through APIs in this camera fixture. Their panels have
+            // separate UI tests and must not intercept the synthetic world-click coordinates.
+            root.GetComponent<UnitActionUI>().enabled = false;
+            root.GetComponent<BodyTargetUI>().enabled = false;
             mouse = InputSystem.AddDevice<Mouse>();
             Physics.SyncTransforms(); yield return null;
         }
@@ -90,6 +128,14 @@ namespace MechaXCOM.Tests
             InputSystem.RemoveDevice(mouse);
             InputSystem.settings.editorInputBehaviorInPlayMode = oldEditor;
             InputSystem.settings.backgroundBehavior = oldBackground;
+#if UNITY_EDITOR
+            if (viewSizeGroup != null)
+            {
+                viewSelection.SetValue(testView, savedViewSize);
+                viewSizeGroup.GetType().GetMethod("RemoveCustomSize").Invoke(viewSizeGroup, new object[] { addedViewSize });
+                viewSizeGroup = null;
+            }
+#endif
             Object.Destroy(root); yield return null;
         }
 

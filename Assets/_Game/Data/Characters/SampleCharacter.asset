@@ -13,10 +13,15 @@ MonoBehaviour:
   m_Name: SampleCharacter
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.CharacterData
   characterId: sample_character
-  displayName: "샘플 파일럿"
-  description: "능력치 편집을 위한 샘플 파일럿입니다. 아직 전투에는 연결하지 않았습니다."
+  displayName: "\uC0D8\uD50C \uD30C\uC77C\uB7FF"
+  description: "\uB2A5\uB825\uCE58 \uD3B8\uC9D1\uC744 \uC704\uD55C \uC0D8\uD50C \uD30C\uC77C\uB7FF\uC785\uB2C8\uB2E4.
+    \uC544\uC9C1 \uC804\uD22C\uC5D0\uB294 \uC5F0\uACB0\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4."
   initialLevel: 1
   shooting: 0
   melee: 0
   technique: 0
   evasion: 0
+  portraitFolder: {fileID: 102900000, guid: 39ea1bad4d874013819737c8afb69afc, type: 3}
+  defaultPortrait: {fileID: 21300000, guid: cca862be9fbc8e44eb803e58cf4fdda7, type: 3}
+  laughPortrait: {fileID: 0}
+  damagedPortrait: {fileID: 0}

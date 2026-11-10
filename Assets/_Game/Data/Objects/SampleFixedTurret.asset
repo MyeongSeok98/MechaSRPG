@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1e288e9531242678f371012853c46db, type: 3}
+  m_Name: SampleFixedTurret
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.TurretData
+  objectId: sample_fixed_turret
+  displayName: 샘플 고정포대
+  description: 팔다리 없이 단일 HP와 원거리 무장을 사용하는 고정포대 데이터 샘플입니다.
+  maxHP: 2500
+  modelPrefab: {fileID: 0}
+  baseAP: 5
+  detectionRange: 10
+  weapon: {fileID: 11400000, guid: ac49ab422f563c644898af835309a746, type: 2}

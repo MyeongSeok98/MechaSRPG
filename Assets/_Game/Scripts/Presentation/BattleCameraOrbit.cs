@@ -19,6 +19,9 @@ namespace MechaXCOM
         private Quaternion startRotation;
         private Vector3 focusStart, focusDestination, focusPoint;
         private bool initialized, rotating, focusing;
+        private TurnManager turns;
+        public void ConfigureTurns(TurnManager manager) => turns = manager;
+        private bool InputLocked => turns && turns.IsPresentingTurn;
 
         public void Initialize(GridManager grid)
         {
@@ -36,7 +39,7 @@ namespace MechaXCOM
 
         public bool TryFocus(Vector3 point)
         {
-            if (!initialized || !isActiveAndEnabled || rotating || focusing || Mathf.Abs(transform.forward.y) < 0.001f)
+            if (!initialized || !isActiveAndEnabled || InputLocked || rotating || focusing || Mathf.Abs(transform.forward.y) < 0.001f)
                 return false;
             float distance = (point.y - transform.position.y) / transform.forward.y;
             if (distance <= 0) return false;
@@ -50,7 +53,7 @@ namespace MechaXCOM
 
         private void BeginRotation(float degrees)
         {
-            if (!initialized || !isActiveAndEnabled || rotating || focusing) return;
+            if (!initialized || !isActiveAndEnabled || InputLocked || rotating || focusing) return;
             var offset = transform.position - center;
             radius = new Vector2(offset.x, offset.z).magnitude;
             height = offset.y;
@@ -64,7 +67,7 @@ namespace MechaXCOM
 
         private void Update()
         {
-            if (!initialized) return;
+            if (!initialized || InputLocked) return;
             var mouse = Mouse.current;
             if (mouse != null && battleCamera.orthographic)
             {
@@ -95,6 +98,7 @@ namespace MechaXCOM
 
         private void LateUpdate()
         {
+            if (InputLocked) return;
             if (focusing)
             {
                 elapsed += Time.unscaledDeltaTime;

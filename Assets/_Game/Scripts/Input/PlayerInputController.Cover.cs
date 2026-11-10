@@ -9,7 +9,7 @@ namespace MechaXCOM
         public CoverAttackResult LastCoverAttackResult { get; private set; }
         public bool IsCoverAttackSelected => ActionMode == UnitActionMode.Attack && SelectedWeaponSlot.HasValue && selected &&
             selected.Combat && selected.Combat.TryGetAttack(SelectedWeaponSlot.Value, out var attack, out _) &&
-            attack.Type == AttackType.Ranged && attack.Weapon.RangedCategory == RangedWeaponCategory.Explosive && !attack.Weapon.IsIndirect;
+            !attack.Weapon.IsIndirect;
         public CoverObject TargetCover => IsCoverAttackSelected && coverTarget && combat &&
             combat.IsCoverTargetAvailable(coverTarget) ? coverTarget : null;
         public CoverAttackPreview CurrentCoverPreview => TargetCover && combat

@@ -54,6 +54,21 @@ namespace MechaXCOM
             }
         }
         public bool ContainsScreenPoint(Vector2 point) => IsVisible && PanelRect.Contains(new Vector2(point.x, Screen.height - point.y));
+        public string TerrainDamageText
+        {
+            get
+            {
+                if (!input) return string.Empty;
+                var preview = input.CurrentIndirectPreview; int facilities = 0, covers = 0;
+                if (preview.VisibleCovers != null)
+                    foreach (var target in preview.VisibleCovers)
+                        if (target && target.GetComponent<CoverDurability>().Data) facilities++; else covers++;
+                var lines = new List<string>();
+                if (facilities > 0) lines.Add($"시설 {facilities}개 / 피해 {preview.MinDamage}-{preview.MaxDamage}");
+                if (covers > 0) lines.Add($"엄폐물 {covers}개 / 피해 {preview.MinCoverDamage}-{preview.MaxCoverDamage}");
+                return lines.Count == 0 ? "시설·엄폐물 0개" : string.Join("\n", lines);
+            }
+        }
         public void HandleScreenClick(Vector2 point)
         {
             if (!ContainsScreenPoint(point)) return;
@@ -77,7 +92,7 @@ namespace MechaXCOM
             ResourceTypography.Label(new Rect(panel.x + 12 * Scale, panel.y + 158 * Scale, 276 * Scale, 50 * Scale),
                 $"AP {preview.APCost} / 탄약 {preview.AmmoLoaded}/{preview.MagazineCapacity}\n{(preview.CanAttack ? KnownTargetsText : preview.FailureReason)}", label);
             ResourceTypography.Label(new Rect(panel.x + 12 * Scale, panel.y + 218 * Scale, 276 * Scale, 75 * Scale),
-                $"엄폐물 {preview.VisibleCovers?.Count ?? 0}개 / 피해 {preview.MinCoverDamage}-{preview.MaxCoverDamage}\n{FriendlyWarningText}", label);
+                $"{TerrainDamageText}\n{FriendlyWarningText}", label);
             bool enabled = GUI.enabled; GUI.enabled = enabled && preview.CanAttack; GUI.Button(FireButtonRect, "Fire / 포격 확정", button);
             GUI.enabled = enabled; GUI.Button(CancelButtonRect, "취소", button); GUI.depth = depth;
         }

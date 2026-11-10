@@ -27,6 +27,34 @@ namespace MechaXCOM.Tests
         private string loadedScenePath;
         private InputSettings.EditorInputBehaviorInPlayMode previousEditor;
         private InputSettings.BackgroundBehavior previousBackground;
+        private UnityEditor.EditorWindow testView;
+        private object viewSizeGroup;
+        private System.Reflection.PropertyInfo viewSelection;
+        private int savedViewSize, addedViewSize;
+        private IEnumerator SetTestResolution()
+        {
+            var assembly = typeof(UnityEditor.Editor).Assembly;
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+            var sizesType = assembly.GetType("UnityEditor.GameViewSizes");
+            var singleton = typeof(UnityEditor.ScriptableSingleton<>).MakeGenericType(sizesType);
+            var sizes = singleton.GetProperty("instance").GetValue(null);
+            var groupType = sizesType.GetProperty("currentGroupType", flags).GetValue(sizes);
+            viewSizeGroup = sizesType.GetMethod("GetGroup").Invoke(sizes, new[] { groupType });
+            var viewType = assembly.GetType("UnityEditor.GameView");
+            testView = UnityEditor.EditorWindow.GetWindow(viewType);
+            viewSelection = viewType.GetProperty("selectedSizeIndex", flags);
+            savedViewSize = (int)viewSelection.GetValue(testView);
+            int builtins = (int)viewSizeGroup.GetType().GetMethod("GetBuiltinCount").Invoke(viewSizeGroup, null);
+            int custom = (int)viewSizeGroup.GetType().GetMethod("GetCustomCount").Invoke(viewSizeGroup, null);
+            addedViewSize = builtins + custom;
+            var size = System.Activator.CreateInstance(assembly.GetType("UnityEditor.GameViewSize"),
+                new object[] { System.Enum.Parse(assembly.GetType("UnityEditor.GameViewSizeType"), "FixedResolution"), 1280, 720, "Scene integration fixture" });
+            viewSizeGroup.GetType().GetMethod("AddCustomSize").Invoke(viewSizeGroup, new[] { size });
+            viewSelection.SetValue(testView, addedViewSize); testView.Repaint();
+            float deadline = Time.realtimeSinceStartup + 5;
+            while ((Screen.width != 1280 || Screen.height != 720) && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(Screen.width, Is.EqualTo(1280)); Assert.That(Screen.height, Is.EqualTo(720));
+        }
         // Exercise the same explicit action choice as the unit menu.
         private bool MoveSelected(Vector2Int destination)
         { input.BeginMove(); return input.TryMoveSelected(destination); }
@@ -35,6 +63,8 @@ namespace MechaXCOM.Tests
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            // World-click positions require a landscape viewport, independent of earlier capture tests.
+            yield return SetTestResolution();
             previousEditor = InputSystem.settings.editorInputBehaviorInPlayMode;
             previousBackground = InputSystem.settings.backgroundBehavior;
             InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
@@ -45,6 +75,7 @@ namespace MechaXCOM.Tests
             yield return null;
             yield return null;
             ReadBattle();
+            yield return TurnBannerTestSupport.Finish(turns);
         }
         private void ReadBattle()
         {
@@ -62,6 +93,12 @@ namespace MechaXCOM.Tests
         [UnityTearDown]
         public IEnumerator TearDown()
         {
+            if (viewSizeGroup != null)
+            {
+                viewSelection.SetValue(testView, savedViewSize);
+                viewSizeGroup.GetType().GetMethod("RemoveCustomSize").Invoke(viewSizeGroup, new object[] { addedViewSize });
+                viewSizeGroup = null;
+            }
             InputSystem.settings.editorInputBehaviorInPlayMode = previousEditor;
             InputSystem.settings.backgroundBehavior = previousBackground;
             var old = SceneManager.GetActiveScene();
@@ -77,16 +114,18 @@ namespace MechaXCOM.Tests
             EditorSceneManager.LoadSceneInPlayMode(loadedScenePath, new LoadSceneParameters(LoadSceneMode.Single));
             yield return null; yield return null;
             ReadBattle();
+            yield return TurnBannerTestSupport.Finish(turns);
         }
         [UnityTest]
         public IEnumerator AuthoredScenesUseWeaponDataWithoutSaving()
         {
-            foreach (var name in new[] { "1V1Test", "SqurdWeaponTest" })
+            foreach (var name in new[] { "1V1Test", "SqurdWeaponTest", "EliminationMissionTest", "DestroyCommunicationStationTest" })
             {
                 loadedScenePath = "Assets/_Game/Scenes/" + name + ".unity";
                 savedSceneBytes = File.ReadAllBytes(loadedScenePath);
                 EditorSceneManager.LoadSceneInPlayMode(loadedScenePath, new LoadSceneParameters(LoadSceneMode.Single));
                 yield return null; yield return null;
+                yield return TurnBannerTestSupport.Finish(Object.FindFirstObjectByType<TurnManager>());
                 Assert.That(Object.FindObjectsByType<CombatFeedbackPresenter>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
                 foreach (var loaded in Object.FindObjectsByType<BattleUnit>(FindObjectsSortMode.None))
                 {
@@ -102,6 +141,16 @@ namespace MechaXCOM.Tests
                         Assert.That(stats.MaxDamage, Is.EqualTo(stats.Weapon.MaxDamage));
                     }
                 }
+                var inspectionInput = Object.FindFirstObjectByType<PlayerInputController>();
+                var inspection = Object.FindFirstObjectByType<BattleDebugUI>();
+                var ally = Object.FindObjectsByType<BattleUnit>(FindObjectsSortMode.None).First(u => u.Team == UnitTeam.Player);
+                Assert.That(inspectionInput.SelectUnit(ally), Is.True);
+                Assert.That(inspection.DisplayedUnit, Is.SameAs(ally));
+                Assert.That(inspection.MechaName, Is.EqualTo(ally.MechaData.DisplayName));
+                var portrait = inspection.PilotPortrait;
+                Assert.That(portrait, Is.Not.Null, "Authored scenes must supply a sample pilot portrait when no pilot is assigned.");
+                Assert.That(UnityEditor.AssetDatabase.GetAssetPath(portrait),
+                    Is.EqualTo("Assets/_Game/Art/Characters/SampleAllyCharacter/Portraits/Default.png"));
                 Assert.That(File.ReadAllBytes(loadedScenePath), Is.EqualTo(savedSceneBytes));
             }
         }
@@ -166,7 +215,7 @@ namespace MechaXCOM.Tests
         private IEnumerator FinishEnemyTurn()
         {
             float deadline = Time.realtimeSinceStartup + 6;
-            while (!turns.IsPlayerTurn && !turns.IsBattleOver && Time.realtimeSinceStartup < deadline) yield return null;
+            while ((!turns.IsPlayerTurn || turns.IsPresentingTurn) && !turns.IsBattleOver && Time.realtimeSinceStartup < deadline) yield return null;
             Assert.That(turns.IsPlayerTurn || turns.IsBattleOver, Is.True, "Enemy phase timed out.");
             yield return null;
         }

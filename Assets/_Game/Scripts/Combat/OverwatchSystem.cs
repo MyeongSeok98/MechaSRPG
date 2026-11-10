@@ -116,7 +116,7 @@ namespace MechaXCOM
             CoversCell(watcher, target.CurrentGridPosition, attack, watcher.Overwatch.Facing);
 
         internal bool CanPreviewDecision(BattleUnit watcher, BattleUnit target, WeaponSlot slot) =>
-            IsResolving && !turns.IsPresentingAttack && HasDecisionReceiver && pendingDecision.HasValue && currentMover == target && currentWatcher == watcher &&
+            IsResolving && !turns.IsPresentingTurn && !turns.IsPresentingAttack && HasDecisionReceiver && pendingDecision.HasValue && currentMover == target && currentWatcher == watcher &&
             pendingDecision.Value.Watcher == watcher && pendingDecision.Value.Target == target && pendingDecision.Value.Slot == slot &&
             ValidReaction(watcher, target, slot);
 

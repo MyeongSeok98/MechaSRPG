@@ -37,13 +37,15 @@ namespace MechaXCOM
             var title = new GUIStyle(label) { fontStyle = FontStyle.Bold, fontSize = Mathf.RoundToInt(18 * Scale) };
             var button = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(14 * Scale) };
             int depth = GUI.depth; GUI.depth = -10; GUI.Box(panel, GUIContent.none);
-            ResourceTypography.Label(new Rect(panel.x + 12 * Scale, panel.y + 10 * Scale, 276 * Scale, 30 * Scale), "엄폐물 직접 공격", title);
+            ResourceTypography.Label(new Rect(panel.x + 12 * Scale, panel.y + 10 * Scale, 276 * Scale, 30 * Scale),
+                input.TargetCover.GetComponent<MissionTarget>() ? "목표 시설 직접 공격" : input.TargetCover.GetComponent<CoverDurability>().Data ? "시설 직접 공격" : "엄폐물 직접 공격", title);
             ResourceTypography.Label(new Rect(panel.x + 12 * Scale, panel.y + 44 * Scale, 276 * Scale, 52 * Scale), TargetInfo, label);
             ResourceTypography.Label(new Rect(panel.x + 12 * Scale, panel.y + 100 * Scale, 276 * Scale, 55 * Scale),
                 $"{preview.WeaponName}\n피해 {preview.MinDamage}-{preview.MaxDamage} / 확정 명중", label);
             ResourceTypography.Label(new Rect(panel.x + 12 * Scale, panel.y + 160 * Scale, 276 * Scale, 46 * Scale),
-                preview.CanAttack ? $"AP {preview.APCost} / 탄약 {preview.AmmoLoaded}/{preview.MagazineCapacity}" : preview.FailureReason, label);
-            bool enabled = GUI.enabled; GUI.enabled = enabled && preview.CanAttack; GUI.Button(FireButtonRect, "Fire / 사격 확정", button);
+                preview.CanAttack ? (preview.UsesAmmo ? $"AP {preview.APCost} / 탄약 {preview.AmmoLoaded}/{preview.MagazineCapacity}" : $"AP {preview.APCost}") : preview.FailureReason, label);
+            bool enabled = GUI.enabled; GUI.enabled = enabled && preview.CanAttack;
+            GUI.Button(FireButtonRect, preview.Type == AttackType.Melee ? "Attack / 공격 확정" : "Fire / 사격 확정", button);
             GUI.enabled = enabled; GUI.Button(CancelButtonRect, "취소", button); GUI.depth = depth;
         }
     }

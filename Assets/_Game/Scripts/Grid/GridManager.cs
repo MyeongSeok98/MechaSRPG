@@ -139,11 +139,18 @@ namespace MechaXCOM
             return occupied;
         }
         // Melee reach requires a short traversable route, independent of remaining movement AP.
-        public bool HasMeleeReach(Vector2Int from, Vector2Int to, int range)
+        public bool HasMeleeReach(Vector2Int from, Vector2Int to, int range) => HasMeleeReachCore(from, to, range, false);
+        public bool HasMeleeReachToObstacle(Vector2Int from, Vector2Int to, int range, BoxCollider obstacle)
+        {
+            if (!obstacle || !obstacleSources.TryGetValue(obstacle, out var footprint) || !TryGetCell(to, out var cell) ||
+                !footprint.Cells.Contains(cell) || !cell.BaseWalkable || cell.ObstacleCount != 1 || cell.Occupied) return false;
+            return HasMeleeReachCore(from, to, range, true);
+        }
+        private bool HasMeleeReachCore(Vector2Int from, Vector2Int to, int range, bool allowDestinationObstacle)
         {
             if (from == to || !CombatMath.IsInRange(from, to, range) ||
                 !TryGetCell(from, out var source) || !source.Walkable ||
-                !TryGetCell(to, out var destination) || !destination.Walkable) return false;
+                !TryGetCell(to, out var destination) || (!allowDestinationObstacle && !destination.Walkable)) return false;
             var distances = new Dictionary<Vector2Int, int> { [from] = 0 };
             var queue = new Queue<Vector2Int>(); queue.Enqueue(from);
             var steps = new[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
@@ -154,7 +161,9 @@ namespace MechaXCOM
                 foreach (var step in steps)
                 {
                     var next = current + step;
-                    if (distances.ContainsKey(next) || !TryGetCell(next, out var cell) || !cell.Walkable) continue;
+                    if (distances.ContainsKey(next) || !TryGetCell(next, out var cell)) continue;
+                    if (next == to && allowDestinationObstacle) return true;
+                    if (!cell.Walkable) continue;
                     if (next == to) return true;
                     if (cell.Occupied) continue;
                     distances[next] = distances[current] + 1; queue.Enqueue(next);

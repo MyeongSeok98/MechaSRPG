@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64b69c37a5b84cd496b9d9043fef275e, type: 3}
+  m_Name: SampleEliminationMission
+  m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.MissionData
+  missionId: sample_elimination
+  displayName: 폐허 지역 소탕
+  description: 지정된 적 소대를 모두 파괴한다. Critical 상태는 섬멸로 인정하지 않는다.
+  regionName: 남부 폐허
+  targetEnemyGroupId: EnemySquad_A

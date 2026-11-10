@@ -12,13 +12,21 @@ namespace MechaXCOM.EditorTools
             using (new EditorGUI.DisabledScope(true)) EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Script"));
             bool runtime = Application.isPlaying && !EditorUtility.IsPersistent(target);
             using (new EditorGUI.DisabledScope(runtime))
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("maxHP"), new GUIContent("최대 HP"));
+            {
+                var data = serializedObject.FindProperty("objectData");
+                EditorGUILayout.PropertyField(data);
+                if (data.hasMultipleDifferentValues || !data.objectReferenceValue)
+                    EditorGUILayout.PropertyField(serializedObject.FindProperty("maxHP"), new GUIContent("최대 HP (데이터 미지정 시)"));
+                else
+                    EditorGUILayout.LabelField("데이터 최대 HP", ((DestructibleObjectData)data.objectReferenceValue).MaxHP.ToString());
+            }
             serializedObject.ApplyModifiedProperties();
             if (runtime)
                 using (new EditorGUI.DisabledScope(true))
                     foreach (var item in targets)
                     {
                         var health = (CoverDurability)item;
+                        EditorGUILayout.IntField(item.name + " 개체 최대 HP", health.MaxHP);
                         EditorGUILayout.IntField(item.name + " 현재 HP", health.CurrentHP);
                         EditorGUILayout.Toggle("파괴됨", health.IsDestroyed);
                     }

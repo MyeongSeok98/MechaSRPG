@@ -19,6 +19,7 @@ namespace MechaXCOM.Tests
             var bytes = File.ReadAllBytes(path);
             EditorSceneManager.LoadSceneInPlayMode(path, new LoadSceneParameters(LoadSceneMode.Single));
             yield return null; yield return null;
+            yield return TurnBannerTestSupport.Finish(Object.FindFirstObjectByType<TurnManager>());
             try
             {
                 var units = Object.FindObjectsByType<BattleUnit>(FindObjectsSortMode.None);

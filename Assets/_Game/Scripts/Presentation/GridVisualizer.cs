@@ -33,15 +33,15 @@ namespace MechaXCOM
             UnsubscribeVisibility();
             this.turns = turns;
             visibility = turns ? turns.Visibility : null;
-            if (isActiveAndEnabled && visibility) visibility.Changed += UpdateEnemyIndicator;
+            if (isActiveAndEnabled && visibility) visibility.Changed += HandleVisibilityChanged;
             if (!grid || lines) return;
             this.grid = grid;
             lineMaterial = EnsureMaterial(lineMaterial, new Color(0.18f, 0.22f, 0.18f));
             rangeMaterial = EnsureMaterial(rangeMaterial, new Color(0.25f, 0.52f, 0.49f));
-            selectionMaterial = EnsureMaterial(selectionMaterial, new Color(1f, 0.78f, 0.24f));
+            selectionMaterial = SelectionColor(selectionMaterial, new Color(.12f, .95f, .25f));
             attackMaterial = EnsureMaterial(attackMaterial, new Color(0.78f, 0.13f, 0.12f));
             overwatchMaterial = EnsureMaterial(overwatchMaterial, new Color(.95f, .55f, .12f));
-            enemySelectionMaterial = EnsureMaterial(enemySelectionMaterial, new Color(0.95f, 0.12f, 0.1f));
+            enemySelectionMaterial = SelectionColor(enemySelectionMaterial, new Color(0.95f, 0.12f, 0.1f));
             lines = MakeRoot("Grid Lines");
             ranges = MakeRoot("Reachable Cells");
             indicator = MakeIndicator("Selection Indicator", selectionMaterial);
@@ -95,6 +95,12 @@ namespace MechaXCOM
             var created = new Material(shader) { color = color };
             ownedMaterials.Add(created);
             return created;
+        }
+        private Material SelectionColor(Material original, Color color)
+        {
+            if (!original) return EnsureMaterial(null, color);
+            var copy = new Material(original) { color = color };
+            ownedMaterials.Add(copy); return copy;
         }
         public void ShowReachableCells(List<GridCell> cells)
             => ShowRangeCells(cells, rangeMaterial);
@@ -166,23 +172,28 @@ namespace MechaXCOM
         private void OnDisable()
         {
             UnsubscribeVisibility();
+            if (indicator) indicator.gameObject.SetActive(false);
             if (enemyIndicator) enemyIndicator.gameObject.SetActive(false);
         }
         private void OnEnable()
         {
-            if (visibility) visibility.Changed += UpdateEnemyIndicator;
-            UpdateEnemyIndicator();
+            if (visibility) visibility.Changed += HandleVisibilityChanged;
+            HandleVisibilityChanged();
         }
         private void UnsubscribeVisibility()
         {
-            if (visibility) visibility.Changed -= UpdateEnemyIndicator;
+            if (visibility) visibility.Changed -= HandleVisibilityChanged;
         }
+        private void HandleVisibilityChanged() { UpdateIndicator(); UpdateEnemyIndicator(); }
         private void UpdateIndicator()
         {
             if (!indicator || !grid) return;
-            bool visible = selected && selected.isActiveAndEnabled && selected.IsAlive;
+            bool visible = isActiveAndEnabled && selected && selected.isActiveAndEnabled && selected.IsAlive &&
+                (selected.Team == UnitTeam.Player || (visibility && visibility.IsVisibleTo(UnitTeam.Player, selected)));
             indicator.gameObject.SetActive(visible);
             if (!visible) return;
+            var material = selected.Team == UnitTeam.Player ? selectionMaterial : enemySelectionMaterial;
+            foreach (var renderer in indicator.GetComponentsInChildren<Renderer>()) renderer.sharedMaterial = material;
             var position = selected.transform.position;
             position.y = grid.transform.position.y + 0.085f;
             indicator.position = position;

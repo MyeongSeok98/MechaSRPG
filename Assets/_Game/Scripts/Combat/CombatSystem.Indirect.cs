@@ -126,7 +126,8 @@ namespace MechaXCOM
                 foreach (var target in coverTargets)
                 {
                     int raw = Mathf.Clamp(damageRollSource(preview.MinDamage, preview.MaxDamage), preview.MinDamage, preview.MaxDamage);
-                    coverPayloads.Add((target, target.GetComponent<CoverDurability>(), FeedbackPosition(target.gameObject), CombatMath.CalculateCoverDamage(raw, preview.CoverDamageMultiplier)));
+                    var health = target.GetComponent<CoverDurability>();
+                    coverPayloads.Add((target, health, FeedbackPosition(target.gameObject), CombatMath.CalculateCoverDamage(raw, health.Data ? 1f : preview.CoverDamageMultiplier)));
                 }
                 foreach (var payload in payloads)
                 {
