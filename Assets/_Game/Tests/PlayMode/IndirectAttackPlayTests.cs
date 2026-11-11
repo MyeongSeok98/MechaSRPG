@@ -56,7 +56,9 @@ namespace MechaXCOM.Tests
         [UnityTest] public IEnumerator MapClickSelectsAreaAndEscapeClearsAllIndicators()
         {
             Create(true); ExplosiveTestSupport.Set(b.Weapon, "blastRadius", 3); yield return null;
-            var cell = new Vector2Int(4, 4); var point = camera.WorldToScreenPoint(b.Grid.GetWorldPosition(cell));
+            // Use a map point in the wheel's open center, rather than underneath a command label.
+            var cell = new Vector2Int(3, 3); var point = camera.WorldToScreenPoint(b.Grid.GetWorldPosition(cell));
+            Assert.That(b.Root.GetComponent<UnitActionUI>().ContainsScreenPoint(point), Is.False);
             yield return Click(point);
             Assert.That(ExplosiveTestSupport.Property<Vector2Int?>(input, "SelectedImpactCell"), Is.EqualTo(cell));
             Assert.That(ExplosiveTestSupport.Property<bool>(AreaUI(), "IsVisible"), Is.True);

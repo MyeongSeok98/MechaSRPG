@@ -158,14 +158,45 @@ namespace MechaXCOM.Tests
                     Is.EqualTo("Assets/_Game/Art/UI/Panels/UnitInfoFrame_Olive.png"));
                 if (name == "DestroyCommunicationStationTest")
                 {
-                    yield return null; yield return null;
-                    string path = Path.GetFullPath("Artifacts/debug-frame-station.png");
-                    if (File.Exists(path)) File.Delete(path);
-                    ScreenCapture.CaptureScreenshot(path);
-                    float deadline = Time.realtimeSinceStartup + 5;
-                    while (!File.Exists(path) && Time.realtimeSinceStartup < deadline)
-                    { UnityEditorInternal.InternalEditorUtility.RepaintAllViews(); yield return null; }
-                    Assert.That(File.Exists(path), Is.True);
+                    yield return new WaitForSecondsRealtime(.28f);
+                    yield return CaptureOverlay("fighter-hud-acquiring.png");
+                    yield return new WaitForSecondsRealtime(.66f);
+                    yield return CaptureOverlay("fighter-hud-verifying.png");
+                    yield return new WaitForSecondsRealtime(.5f);
+                    yield return CaptureOverlay("debug-frame-station.png");
+                    Assert.That(inspectionInput.BeginMove(), Is.True);
+                    yield return null;
+                    yield return CaptureOverlay("command-wheel-move.png");
+                    var commandCamera = Object.FindFirstObjectByType<BattleCameraOrbit>().GetComponent<Camera>();
+                    var commandUI = inspectionInput.GetComponent<UnitActionUI>();
+                    var originalPosition = commandCamera.transform.position;
+                    float originalZoom = commandCamera.orthographicSize;
+                    try
+                    {
+                        var renderers = ally.GetComponent<UnitMechaVisual>().ModelInstance.GetComponentsInChildren<Renderer>();
+                        float minY = renderers.Min(r => r.bounds.min.y), maxY = renderers.Max(r => r.bounds.max.y);
+                        var anchor = new Vector3(ally.transform.position.x, (minY + maxY) / 2, ally.transform.position.z);
+                        foreach (var capture in new[] { new { X = .39f, Y = .5f, Name = "command-wheel-anchor-hud.png" },
+                            new { X = .6f, Y = .88f, Name = "command-wheel-anchor-top.png" } })
+                        {
+                            float depth = commandCamera.WorldToScreenPoint(anchor).z;
+                            commandCamera.transform.position += anchor - commandCamera.ScreenToWorldPoint(new Vector3(Screen.width * capture.X, Screen.height * capture.Y, depth));
+                            yield return null;
+                            var point = commandCamera.WorldToScreenPoint(anchor);
+                            Assert.That(Vector2.Distance(commandUI.RingCenter, new Vector2(point.x, Screen.height - point.y)), Is.LessThan(.5f));
+                            yield return CaptureOverlay(capture.Name);
+                        }
+                        if (commandCamera.orthographic) commandCamera.orthographicSize = Mathf.Min(originalZoom, 8);
+                        float showcaseDepth = commandCamera.WorldToScreenPoint(anchor).z;
+                        commandCamera.transform.position += anchor - commandCamera.ScreenToWorldPoint(new Vector3(Screen.width * .62f, Screen.height * .5f, showcaseDepth));
+                        Assert.That(inspectionInput.SelectUnit(ally), Is.True);
+                        yield return new WaitForSecondsRealtime(.28f);
+                        yield return CaptureOverlay("fighter-hud-showcase-acquiring.png");
+                        yield return new WaitForSecondsRealtime(1.15f);
+                        Assert.That(inspectionInput.BeginMove(), Is.True); yield return null;
+                        yield return CaptureOverlay("fighter-hud-showcase-selected.png");
+                    }
+                    finally { commandCamera.transform.position = originalPosition; commandCamera.orthographicSize = originalZoom; }
                 }
                 Assert.That(File.ReadAllBytes(loadedScenePath), Is.EqualTo(savedSceneBytes));
             }
@@ -461,6 +492,16 @@ namespace MechaXCOM.Tests
             Object.Destroy(second.gameObject);
             yield return null;
             Assert.That(Pathfinder.FindPath(grid, unit, new Vector2Int(3, 1)).Count, Is.EqualTo(2));
+        }
+        private IEnumerator CaptureOverlay(string name)
+        {
+            string path = Path.GetFullPath("Artifacts/" + name);
+            if (File.Exists(path)) File.Delete(path);
+            ScreenCapture.CaptureScreenshot(path);
+            float deadline = Time.realtimeSinceStartup + 5;
+            while (!File.Exists(path) && Time.realtimeSinceStartup < deadline)
+            { UnityEditorInternal.InternalEditorUtility.RepaintAllViews(); yield return null; }
+            Assert.That(File.Exists(path), Is.True);
         }
         private IEnumerator Capture(string name)
         {

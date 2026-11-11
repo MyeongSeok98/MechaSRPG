@@ -431,6 +431,7 @@ namespace MechaXCOM
             visualizer.SetSelectedUnit(unit);
             debugUI.SetSelectedUnit(unit);
             RefreshRange();
+            if (actionUI) actionUI.NotifySelection();
             return true;
         }
         public bool BeginMove()

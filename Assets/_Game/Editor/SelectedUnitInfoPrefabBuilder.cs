@@ -9,6 +9,7 @@ namespace MechaXCOM.EditorTools
     {
         public const string PanelPath = "Assets/_Game/Prefabs/UI/SelectedUnitInfoPanel.prefab";
         public const string RowPath = "Assets/_Game/Prefabs/UI/UnitStatusRow.prefab";
+        public const string WeaponRowPath = "Assets/_Game/Prefabs/UI/UnitWeaponRow.prefab";
         private static Font BodyFont => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         private static Font NumberFont => Resources.Load<Font>("Oxanium-Regular") ?? BodyFont;
 
@@ -26,8 +27,8 @@ namespace MechaXCOM.EditorTools
             var label = Label("Part Label", row.transform, 14, 30); Width(label.gameObject, 58);
             var track = Image("HP Track", row.transform, new Color32(22, 28, 25, 220));
             var trackLayout = track.gameObject.AddComponent<LayoutElement>(); trackLayout.minWidth = 36; trackLayout.flexibleWidth = 1; trackLayout.preferredHeight = 9;
-            var fill = Image("HP Fill", track.transform, Color.white); Stretch(fill.rectTransform, 1);
-            fill.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            var fill = Image("HP Fill", track.transform, Color.white); Stretch(fill.rectTransform, 0);
+            fill.sprite = SquareHealthSprite();
             fill.type = UnityEngine.UI.Image.Type.Filled; fill.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal; fill.fillAmount = 1;
             var hp = Label("HP Value", row.transform, 14, 30, true); hp.alignment = TextAnchor.MiddleRight; Width(hp.gameObject, 92);
             var rowView = row.AddComponent<UnitStatusRowUI>(); Set(rowView, "partLabel", label); Set(rowView, "healthText", hp); Set(rowView, "healthFill", fill);
@@ -77,6 +78,211 @@ namespace MechaXCOM.EditorTools
             Set(view, "apText", ap); Set(view, "availability", available); Set(view, "state", state); Set(view, "statusContent", contentRect);
             Set(view, "statusScroll", scroll); Set(view, "statusHeight", statusHeight); Set(view, "rowPrefab", rowAsset);
             PrefabUtility.SaveAsPrefabAsset(canvasRoot, PanelPath); Object.DestroyImmediate(canvasRoot); AssetDatabase.SaveAssets();
+            ApplyCompactWeaponLayout();
+        }
+        [MenuItem("MechaXCOM/Apply Compact Unit Info Layout")]
+        public static void ApplyCompactWeaponLayout()
+        {
+            var row = PrefabUtility.LoadPrefabContents(RowPath);
+            Height(row, 26);
+            foreach (var text in row.GetComponentsInChildren<Text>()) { text.fontSize = 16; Height(text.gameObject, 26); }
+            Width(row.transform.Find("Part Label").gameObject, 66);
+            Width(row.transform.Find("HP Value").gameObject, 104);
+            Height(row.transform.Find("HP Track").gameObject, 10);
+            ConfigureSquareHealthFill(row);
+            PrefabUtility.SaveAsPrefabAsset(row, RowPath); PrefabUtility.UnloadPrefabContents(row);
+
+            UnitWeaponRowUI weaponAsset = AssetDatabase.LoadAssetAtPath<GameObject>(WeaponRowPath)?.GetComponent<UnitWeaponRowUI>();
+            if (!weaponAsset)
+            {
+                var weapon = Node("Unit Weapon Row", null); Height(weapon, 38); Vertical(weapon, 0);
+                var top = Node("Weapon", weapon.transform); Height(top, 21);
+                var h = top.AddComponent<HorizontalLayoutGroup>(); h.spacing = 6; h.childControlWidth = h.childControlHeight = true;
+                h.childForceExpandWidth = h.childForceExpandHeight = false;
+                var slot = Label("Slot", top.transform, 16, 21); Width(slot.gameObject, 34); slot.fontStyle = FontStyle.Bold;
+                var name = Label("Name", top.transform, 18, 21); name.fontStyle = FontStyle.Bold;
+                name.GetComponent<LayoutElement>().flexibleWidth = 1;
+                var bottom = Node("Resources", weapon.transform); Height(bottom, 17);
+                var b = bottom.AddComponent<HorizontalLayoutGroup>(); b.spacing = 4; b.childControlWidth = b.childControlHeight = true;
+                b.childForceExpandWidth = b.childForceExpandHeight = false;
+                var resources = Label("Ammo", bottom.transform, 13, 17, true); resources.GetComponent<LayoutElement>().flexibleWidth = 1;
+                var status = Label("Status", bottom.transform, 13, 17); Width(status.gameObject, 64); status.alignment = TextAnchor.MiddleRight;
+                var view = weapon.AddComponent<UnitWeaponRowUI>(); Set(view, "slotLabel", slot); Set(view, "weaponName", name);
+                Set(view, "resources", resources); Set(view, "status", status);
+                weaponAsset = PrefabUtility.SaveAsPrefabAsset(weapon, WeaponRowPath).GetComponent<UnitWeaponRowUI>(); Object.DestroyImmediate(weapon);
+            }
+            ApplySingleLineWeaponRows();
+            var root = PrefabUtility.LoadPrefabContents(PanelPath);
+            try
+            {
+                var panel = root.transform.Find("Panel"); var rect = (RectTransform)panel;
+                rect.sizeDelta = new Vector2(390, rect.sizeDelta.y);
+                var layout = panel.GetComponent<VerticalLayoutGroup>(); layout.spacing = 6; layout.padding = new RectOffset(24, 24, 40, 36);
+                Height(panel.Find("Identity").gameObject, 54);
+                ResizeText(panel, "Identity/Unit Name", 28, 33); ResizeText(panel, "Identity/Pilot Name", 17, 19);
+                Height(panel.Find("Portrait and AP").gameObject, 148);
+                var portrait = panel.Find("Portrait and AP/Portrait Frame").gameObject; Width(portrait, 118); Height(portrait, 148);
+                ResizeText(panel, "Portrait and AP/Action State/AP", 32, 42);
+                ResizeText(panel, "Portrait and AP/Action State/Availability", 22, 28);
+                ResizeText(panel, "Portrait and AP/Action State/State", 19, 26);
+                Height(panel.Find("Status Header").gameObject, 26); ResizeText(panel, "Status Header/Status Title", 20, 26);
+                panel.Find("Status List/Viewport/Parts").GetComponent<VerticalLayoutGroup>().spacing = 1;
+                var view = root.GetComponent<SelectedUnitInfoPanel>(); var serialized = new SerializedObject(view);
+                serialized.FindProperty("maximumStatusHeight").floatValue = 188;
+                serialized.FindProperty("statusRowHeight").floatValue = 26; serialized.FindProperty("statusRowSpacing").floatValue = 1;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                var header = panel.Find("Weapon Header");
+                if (!header)
+                {
+                    var image = Image("Weapon Header", panel, new Color32(78, 95, 99, 220)); Height(image.gameObject, 26); header = image.transform;
+                    var title = Label("Weapon Title", header, 20, 26); Stretch(title.rectTransform, 5); title.text = "WEAPON LOADOUT"; title.fontStyle = FontStyle.Bold;
+                }
+                var content = panel.Find("Weapons");
+                if (!content) { var obj = Node("Weapons", panel); Vertical(obj, 2); content = obj.transform; }
+                Set(view, "weaponHeader", header.gameObject); Set(view, "weaponContent", content.GetComponent<RectTransform>()); Set(view, "weaponRowPrefab", weaponAsset);
+                // Keep horizontal inset without clipping 20px section titles vertically.
+                foreach (var title in new[] { panel.Find("Status Header/Status Title"), header.Find("Weapon Title") })
+                {
+                    var titleRect = title.GetComponent<RectTransform>();
+                    titleRect.offsetMin = new Vector2(5, 0); titleRect.offsetMax = new Vector2(-5, 0);
+                }
+                PrefabUtility.SaveAsPrefabAsset(root, PanelPath);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            AssetDatabase.SaveAssets();
+        }
+        private static void ResizeText(Transform root, string path, int size, float height)
+        { var text = root.Find(path).GetComponent<Text>(); text.fontSize = size; Height(text.gameObject, height); }
+        [MenuItem("MechaXCOM/Apply Stencilia Unit Info Font")]
+        public static void ApplyStenciliaFont()
+        {
+            var font = AssetDatabase.LoadAssetAtPath<Font>("Assets/_Game/Art/UI/Fonts/Stencilia/Stencilia-Bold.ttf");
+            if (!font) throw new System.InvalidOperationException("Stencilia-Bold.ttf 파일이 필요합니다.");
+            var root = PrefabUtility.LoadPrefabContents(PanelPath);
+            try
+            {
+                Set(root.GetComponent<SelectedUnitInfoPanel>(), "displayFont", font);
+                PrefabUtility.SaveAsPrefabAsset(root, PanelPath);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            AssetDatabase.SaveAssets();
+        }
+        [MenuItem("MechaXCOM/Apply Saira and Oxanium Unit Info Fonts")]
+        public static void ApplySairaOxaniumFonts()
+        {
+            var titleFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/_Game/Art/UI/Fonts/SairaStencil/SairaStencil-SemiBold.ttf");
+            var contentFont = Resources.Load<Font>("Oxanium-Regular");
+            if (!titleFont || !contentFont) throw new System.InvalidOperationException("Saira Stencil과 Oxanium 폰트가 필요합니다.");
+            var root = PrefabUtility.LoadPrefabContents(PanelPath);
+            try
+            {
+                var view = root.GetComponent<SelectedUnitInfoPanel>();
+                Set(view, "displayFont", titleFont); Set(view, "contentFont", contentFont);
+                var data = new SerializedObject(view); var titles = data.FindProperty("sectionTitles"); titles.arraySize = 2;
+                titles.GetArrayElementAtIndex(0).objectReferenceValue = root.transform.Find("Panel/Status Header/Status Title").GetComponent<Text>();
+                titles.GetArrayElementAtIndex(1).objectReferenceValue = root.transform.Find("Panel/Weapon Header/Weapon Title").GetComponent<Text>();
+                data.ApplyModifiedPropertiesWithoutUndo();
+                foreach (var text in root.GetComponentsInChildren<Text>(true))
+                {
+                    bool title = text == root.transform.Find("Panel/Identity/Unit Name").GetComponent<Text>() ||
+                        text == root.transform.Find("Panel/Identity/Pilot Name").GetComponent<Text>() || text.name == "Status Title" || text.name == "Weapon Title";
+                    text.font = title ? titleFont : contentFont;
+                    if (title)
+                    {
+                        text.fontStyle = FontStyle.Normal;
+                        // Saira has a taller line box than its visible glyphs; avoid dropping the whole line.
+                        text.verticalOverflow = VerticalWrapMode.Overflow;
+                    }
+                }
+                PrefabUtility.SaveAsPrefabAsset(root, PanelPath);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            AssetDatabase.SaveAssets();
+        }
+        [MenuItem("MechaXCOM/Apply Single Line Weapon Rows")]
+        public static void ApplySingleLineWeaponRows()
+        {
+            var row = PrefabUtility.LoadPrefabContents(WeaponRowPath);
+            try
+            {
+                for (int i = row.transform.childCount - 1; i >= 0; i--) Object.DestroyImmediate(row.transform.GetChild(i).gameObject);
+                var oldLayout = row.GetComponent<VerticalLayoutGroup>(); if (oldLayout) Object.DestroyImmediate(oldLayout);
+                Height(row, 28);
+                var h = row.GetComponent<HorizontalLayoutGroup>() ?? row.AddComponent<HorizontalLayoutGroup>();
+                h.spacing = 6; h.childAlignment = TextAnchor.MiddleLeft;
+                h.childControlWidth = h.childControlHeight = true; h.childForceExpandWidth = h.childForceExpandHeight = false;
+                var badge = Node("Slot Badge", row.transform); Width(badge, 26); Height(badge, 22);
+                var slot = Label("Slot", badge.transform, 15, 22); Stretch(slot.rectTransform, 0); slot.alignment = TextAnchor.MiddleCenter; slot.fontStyle = FontStyle.Bold;
+                slot.rectTransform.anchoredPosition = new Vector2(0, 2); // Optical centering for the font's baseline.
+                foreach (var side in new[] { "Top", "Bottom", "Left", "Right" })
+                {
+                    var edge = Image(side, badge.transform, new Color32(45, 190, 195, 255)); edge.raycastTarget = false;
+                    var r = edge.rectTransform; Stretch(r, 0);
+                    // Keep the full stroke inside the badge; 2px survives reduced Canvas scale.
+                    if (side == "Top" || side == "Bottom")
+                    {
+                        float y = side == "Top" ? 1 : 0;
+                        r.anchorMin = new Vector2(0, y); r.anchorMax = new Vector2(1, y);
+                        r.pivot = new Vector2(.5f, y); r.sizeDelta = new Vector2(0, 2);
+                    }
+                    else
+                    {
+                        float x = side == "Right" ? 1 : 0;
+                        r.anchorMin = new Vector2(x, 0); r.anchorMax = new Vector2(x, 1);
+                        r.pivot = new Vector2(x, .5f); r.sizeDelta = new Vector2(2, 0);
+                    }
+                }
+                var name = Label("Name", row.transform, 15, 24); name.fontStyle = FontStyle.Bold;
+                name.horizontalOverflow = HorizontalWrapMode.Overflow; name.resizeTextForBestFit = true; name.resizeTextMinSize = 10; name.resizeTextMaxSize = 15;
+                name.GetComponent<LayoutElement>().flexibleWidth = 1; name.GetComponent<LayoutElement>().minWidth = 50;
+                WeaponDivider(row.transform, "Ammo Divider");
+                var ammo = Label("Ammo", row.transform, 11, 24, true); Width(ammo.gameObject, 75); ammo.alignment = TextAnchor.MiddleCenter;
+                WeaponDivider(row.transform, "Reserve Divider");
+                var resourceEnd = Node("Reserve or Status", row.transform); Width(resourceEnd, 68); Height(resourceEnd, 24);
+                var reserve = Label("Reserve", resourceEnd.transform, 11, 24, true); Stretch(reserve.rectTransform, 0); reserve.alignment = TextAnchor.MiddleRight;
+                var status = Label("Status", resourceEnd.transform, 12, 24); Stretch(status.rectTransform, 0); status.alignment = TextAnchor.MiddleRight;
+                var view = row.GetComponent<UnitWeaponRowUI>(); Set(view, "slotLabel", slot); Set(view, "weaponName", name);
+                Set(view, "resources", ammo); Set(view, "reserve", reserve); Set(view, "status", status);
+                PrefabUtility.SaveAsPrefabAsset(row, WeaponRowPath);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(row); }
+            AssetDatabase.SaveAssets();
+        }
+        private static void WeaponDivider(Transform parent, string name)
+        {
+            var divider = Image(name, parent, new Color32(150, 165, 153, 220)); divider.raycastTarget = false;
+            Width(divider.gameObject, 1); Height(divider.gameObject, 18);
+        }
+        [MenuItem("MechaXCOM/Apply Square Health Bars")]
+        public static void ApplySquareHealthBars()
+        {
+            var row = PrefabUtility.LoadPrefabContents(RowPath);
+            try { ConfigureSquareHealthFill(row); PrefabUtility.SaveAsPrefabAsset(row, RowPath); }
+            finally { PrefabUtility.UnloadPrefabContents(row); }
+            AssetDatabase.SaveAssets();
+        }
+        private static void ConfigureSquareHealthFill(GameObject row)
+        {
+            var fill = row.transform.Find("HP Track/HP Fill").GetComponent<Image>();
+            fill.sprite = SquareHealthSprite(); Stretch(fill.rectTransform, 0);
+        }
+        private static Sprite SquareHealthSprite()
+        {
+            const string path = "Assets/_Game/Art/UI/Panels/HealthBarFill.png";
+            if (!File.Exists(path))
+            {
+                // An opaque sprite keeps Image.Filled working at partial HP without rounded transparent edges.
+                var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                texture.SetPixels(new[] { Color.white, Color.white, Color.white, Color.white }); texture.Apply();
+                File.WriteAllBytes(path, texture.EncodeToPNG()); Object.DestroyImmediate(texture);
+                AssetDatabase.ImportAsset(path);
+                var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+                importer.textureType = TextureImporterType.Sprite; importer.spriteImportMode = SpriteImportMode.Single;
+                importer.spritePixelsPerUnit = 100; importer.mipmapEnabled = false; importer.filterMode = FilterMode.Point;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
         private static GameObject Node(string name, Transform parent)
         { var obj = new GameObject(name, typeof(RectTransform)); obj.layer = 5; if (parent) obj.transform.SetParent(parent, false); return obj; }

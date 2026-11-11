@@ -39,14 +39,23 @@ namespace MechaXCOM.Tests
             Assert.That(Value(parts[0], "Label"), Is.EqualTo("Body"));
             Assert.That(Value(parts[0], "CurrentHP"), Is.EqualTo(health.CurrentHP));
         }
-        [Test] public void PanelAndReusableRowPrefabsExistWithoutWeaponOrWarningSections()
+        [Test] public void PanelHasReusableHealthAndWeaponRowsWithoutWarningOrAPPips()
         {
             var panel = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Prefabs/UI/SelectedUnitInfoPanel.prefab");
             var row = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Prefabs/UI/UnitStatusRow.prefab");
             Assert.That(panel, Is.Not.Null); Assert.That(row, Is.Not.Null);
+            Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Game/Prefabs/UI/UnitWeaponRow.prefab"), Is.Not.Null);
+            Assert.That(panel.transform.Find("Panel/Weapons"), Is.Not.Null);
+            foreach (var path in new[] { "Panel/Status Header/Status Title", "Panel/Weapon Header/Weapon Title" })
+            {
+                var title = panel.transform.Find(path).GetComponent<UnityEngine.UI.Text>();
+                float headerHeight = title.transform.parent.GetComponent<UnityEngine.UI.LayoutElement>().preferredHeight;
+                float available = headerHeight + title.rectTransform.sizeDelta.y;
+                Assert.That(available, Is.GreaterThanOrEqualTo(title.fontSize), "Section title must fit without vertical truncation.");
+            }
             foreach (var transform in panel.GetComponentsInChildren<Transform>(true))
             {
-                Assert.That(transform.name, Does.Not.Contain("Weapon"));
+                Assert.That(transform.name, Does.Not.Contain("Pip"));
                 Assert.That(transform.name, Does.Not.Contain("Warning"));
             }
         }

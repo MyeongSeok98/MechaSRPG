@@ -398,12 +398,12 @@ namespace MechaXCOM.Tests
             input.SelectUnit(Player);
             yield return ClickButton("MoveButtonRect");
             Assert.That(Ranges.gameObject.activeSelf, Is.True);
-            Assert.That(Menu().IsVisible, Is.False, "Mode selection must not obscure destination clicks.");
+            Assert.That(Menu().IsVisible, Is.True, "Keep the chosen Move action visible; empty wheel space passes map clicks.");
             yield return ClickAt(camera.WorldToScreenPoint(Player.transform.position));
             yield return ClickButton("AttackButtonRect");
             Assert.That(Ranges.gameObject.activeSelf, Is.False, "Opening choices must not begin an attack.");
             yield return ClickButton("RightWeaponButtonRect");
-            Assert.That(Menu().IsVisible, Is.False, "Hide the menu until a target is selected.");
+            Assert.That(Menu().IsVisible, Is.True, "Keep the chosen Attack action visible while aiming.");
             Assert.That(Ranges.GetComponentsInChildren<Renderer>().All(r => r.sharedMaterial.color.r > r.sharedMaterial.color.g), Is.True);
             Assert.That(input.TrySelectTarget(Enemy), Is.True);
             battle.Combat.SetRollSource(() => 0);

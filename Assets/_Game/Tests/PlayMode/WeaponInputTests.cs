@@ -115,7 +115,7 @@ namespace MechaXCOM.Tests
             yield return Click(menu.GetWeaponButtonRect(WeaponSlot.RightHand));
             Assert.That(input.IsWeaponMenuOpen, Is.False);
             Assert.That(input.SelectedWeaponSlot, Is.EqualTo(WeaponSlot.RightHand));
-            Assert.That(menu.IsVisible, Is.False, "Target selection must leave the map clear.");
+            Assert.That(menu.IsVisible, Is.True, "The selected Attack stays visible while empty wheel space leaves the map clear.");
         }
         [UnityTest] public IEnumerator AttackShowsMixedWeaponsAndMeleeOnlyLoadoutWithoutTypeStep()
         {

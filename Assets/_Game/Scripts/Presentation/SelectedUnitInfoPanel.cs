@@ -13,11 +13,20 @@ namespace MechaXCOM
         [SerializeField] private Text apText;
         [SerializeField] private Text availability;
         [SerializeField] private Text state;
+        [SerializeField, InspectorName("제목 폰트")] private Font displayFont;
+        [SerializeField, InspectorName("본문 폰트")] private Font contentFont;
+        [SerializeField] private Text[] sectionTitles = new Text[0];
         [SerializeField] private RectTransform statusContent;
         [SerializeField] private ScrollRect statusScroll;
         [SerializeField] private LayoutElement statusHeight;
         [SerializeField] private UnitStatusRowUI rowPrefab;
-        [SerializeField] private float maximumStatusHeight = 234;
+        [SerializeField] private float maximumStatusHeight = 188;
+        [SerializeField] private float statusRowHeight = 26, statusRowSpacing = 1;
+        [SerializeField] private RectTransform weaponContent;
+        [SerializeField] private GameObject weaponHeader;
+        [SerializeField] private UnitWeaponRowUI weaponRowPrefab;
+        private readonly List<UnitWeaponInfo> weapons = new List<UnitWeaponInfo>();
+        private readonly List<UnitWeaponRowUI> weaponRows = new List<UnitWeaponRowUI>();
         private BattleDebugUI source;
         private TurnManager turns;
         private Font bodyFont;
@@ -41,11 +50,14 @@ namespace MechaXCOM
         { source = debug; turns = manager; Hide(); }
         private void Awake()
         {
-            // Dynamic OS font retains Hangul names while numeric resources use the authored Oxanium asset.
+            // Unsupported characters (including Hangul) retain the OS fallback font.
             bodyFont = Font.CreateDynamicFontFromOSFont(new[] { "Malgun Gothic", "Arial" }, 18);
             if (bodyFont)
                 foreach (var text in GetComponentsInChildren<Text>(true))
-                    if (!text.font || text.font.name != "Oxanium-Regular") text.font = bodyFont;
+                {
+                    bool title = text == unitName || text == pilotName || System.Array.IndexOf(sectionTitles, text) >= 0;
+                    UnitInfoFont.Apply(text, title ? displayFont : contentFont, bodyFont);
+                }
             Hide();
         }
         private void LateUpdate()
@@ -62,6 +74,7 @@ namespace MechaXCOM
             DisplayedUnit = unit; panelRoot.gameObject.SetActive(true);
             unitName.text = UnitInspectionText.Name(unit);
             pilotName.text = unit.PilotData ? unit.PilotData.DisplayName : "Pilot unassigned";
+            UnitInfoFont.Apply(unitName, displayFont, bodyFont); UnitInfoFont.Apply(pilotName, displayFont, bodyFont);
             portrait.sprite = defaultPortrait ? defaultPortrait : unit.PilotData ? unit.PilotData.DefaultPortrait : null;
             portrait.enabled = portrait.sprite;
             apText.text = $"AP {unit.ActionPoints.CurrentPoints}/{unit.ActionPoints.MaxPoints}";
@@ -79,10 +92,30 @@ namespace MechaXCOM
             for (int index = 0; index < rows.Count; index++)
             {
                 rows[index].gameObject.SetActive(index < parts.Count);
-                if (index < parts.Count) rows[index].Show(parts[index]);
+                if (index < parts.Count)
+                {
+                    rows[index].Show(parts[index]);
+                    UnitInfoFont.Apply(rows[index].GetComponentInChildren<Text>(), contentFont, bodyFont);
+                }
             }
-            statusHeight.preferredHeight = Mathf.Min(maximumStatusHeight, parts.Count * 30 + Mathf.Max(0, parts.Count - 1) * 4);
-            if (changed || previousCount != parts.Count)
+            statusHeight.preferredHeight = Mathf.Min(maximumStatusHeight, parts.Count * statusRowHeight + Mathf.Max(0, parts.Count - 1) * statusRowSpacing);
+            int previousWeapons = weapons.Count;
+            UnitWeaponInfo.Read(unit, weapons);
+            if (weaponContent && weaponRowPrefab)
+            {
+                weaponHeader.SetActive(weapons.Count > 0); weaponContent.gameObject.SetActive(weapons.Count > 0);
+                while (weaponRows.Count < weapons.Count)
+                {
+                    var row = Instantiate(weaponRowPrefab, weaponContent); weaponRows.Add(row);
+                    if (bodyFont) row.ApplyBodyFont(bodyFont, contentFont);
+                }
+                for (int i = 0; i < weaponRows.Count; i++)
+                {
+                    weaponRows[i].gameObject.SetActive(i < weapons.Count);
+                    if (i < weapons.Count) weaponRows[i].Show(weapons[i]);
+                }
+            }
+            if (changed || previousCount != parts.Count || previousWeapons != weapons.Count)
             {
                 LayoutRebuilder.ForceRebuildLayoutImmediate(panelRoot);
                 statusScroll.verticalNormalizedPosition = 1;

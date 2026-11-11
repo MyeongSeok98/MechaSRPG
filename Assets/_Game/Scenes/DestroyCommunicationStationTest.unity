@@ -918,7 +918,7 @@ MonoBehaviour:
   rightGrip: 0
   leftSpareMagazineCount: 0
   rightSpareMagazineCount: 1
-  backpack: {fileID: 0}
+  backpack: {fileID: 11400000, guid: c5b777d322f461d46aec72ea512eb6b7, type: 2}
 --- !u!1 &1077212103
 GameObject:
   m_ObjectHideFlags: 0
@@ -1491,7 +1491,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a84e41c50b6873643a30f05e286fb1f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.BattleSceneController
-  unitInfoPanelPrefab: {fileID: 2493287626494869457, guid: 43e29dfd2cb9c054e8172e8ab38923b0, type: 3}
   grid: {fileID: 1874057557}
   coverSystem: {fileID: 1874057556}
   units:
@@ -1509,6 +1508,7 @@ MonoBehaviour:
   combatSystem: {fileID: 1874057560}
   turnManager: {fileID: 1874057559}
   enemyAI: {fileID: 0}
+  unitInfoPanelPrefab: {fileID: 2493287626494869457, guid: 43e29dfd2cb9c054e8172e8ab38923b0, type: 3}
 --- !u!114 &1874057553
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1534,7 +1534,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8da461bf5859dc40bd4bb2ceaf36986, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MechaXCOM.Runtime::MechaXCOM.BattleDebugUI
-  panelFrame: {fileID: 21300000, guid: 4a4696260c8140908a38e13fe132ae25, type: 3}
   panelRect:
     serializedVersion: 2
     x: 16
@@ -1542,6 +1541,7 @@ MonoBehaviour:
     width: 270
     height: 306
   fallbackPortrait: {fileID: 21300000, guid: cca862be9fbc8e44eb803e58cf4fdda7, type: 3}
+  panelFrame: {fileID: 21300000, guid: 4a4696260c8140908a38e13fe132ae25, type: 3}
 --- !u!114 &1874057555
 MonoBehaviour:
   m_ObjectHideFlags: 0

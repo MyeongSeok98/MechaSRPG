@@ -54,6 +54,127 @@ namespace MechaXCOM.Tests
         }
         private UnitStatusRowUI[] Rows => panel.GetComponentsInChildren<UnitStatusRowUI>();
         private RectTransform Frame => panel.transform.Find("Panel").GetComponent<RectTransform>();
+        [UnityTest] public IEnumerator RingStaysOnModelCenterAtEdgesAndAfterCameraChanges()
+        {
+            var template = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            template.transform.SetParent(battle.Root.transform); template.transform.localPosition = Vector3.up * 3;
+            template.transform.localScale = new Vector3(2, 6, 2);
+            var visual = battle.Player.gameObject.AddComponent<UnitMechaVisual>(); visual.Initialize(template, 1);
+            Assert.That(input.SelectUnit(battle.Player), Is.True); yield return null; Canvas.ForceUpdateCanvases();
+            var actions = battle.Root.GetComponent<UnitActionUI>();
+            var centerProperty = typeof(UnitActionUI).GetProperty("RingCenter"); Assert.That(centerProperty, Is.Not.Null);
+            var body = visual.ModelInstance.GetComponent<Renderer>();
+            foreach (var target in new[] { new Vector2(.6f, .97f), new Vector2(.24f, .5f), new Vector2(.97f, .5f) })
+            {
+                var anchor = new Vector3(battle.Player.transform.position.x, body.bounds.center.y, battle.Player.transform.position.z);
+                float depth = camera.WorldToScreenPoint(anchor).z;
+                camera.transform.position += anchor - camera.ScreenToWorldPoint(new Vector3(Screen.width * target.x, Screen.height * target.y, depth));
+                yield return null;
+                var expected = camera.WorldToScreenPoint(anchor);
+                var actual = (Vector2)centerProperty.GetValue(actions);
+                Assert.That(Vector2.Distance(actual, new Vector2(expected.x, Screen.height - expected.y)), Is.LessThan(.5f));
+                Assert.That(actions.TryGetPanelRect(out _), Is.True, "The body can remain visible even when the root is near an edge.");
+            }
+            camera.transform.RotateAround(battle.Player.transform.position, Vector3.up, 90); camera.orthographicSize *= .7f;
+            yield return null;
+            var point = camera.WorldToScreenPoint(new Vector3(battle.Player.transform.position.x, body.bounds.center.y, battle.Player.transform.position.z));
+            Assert.That(Vector2.Distance((Vector2)centerProperty.GetValue(actions), new Vector2(point.x, Screen.height - point.y)), Is.LessThan(.5f));
+        }
+        [UnityTest] public IEnumerator WeaponChoicesDoNotCoverWheelOrHUDWhenNearBothOverlays()
+        {
+            float depth = camera.WorldToScreenPoint(battle.Player.transform.position).z;
+            camera.transform.position += battle.Player.transform.position - camera.ScreenToWorldPoint(new Vector3(Screen.width * .6f, Screen.height * .48f, depth));
+            Assert.That(input.SelectUnit(battle.Player), Is.True); yield return null; Canvas.ForceUpdateCanvases();
+            Assert.That(input.OpenAttackMenu(), Is.True); yield return null;
+            var actions = battle.Root.GetComponent<UnitActionUI>();
+            Assert.That(actions.TryGetPanelRect(out var main), Is.True); Assert.That(actions.TryGetAttackMenuRect(out var choices), Is.True);
+            Assert.That(main.Overlaps(choices), Is.False);
+            Assert.That(debug.TryGetUnitInfoRect(out var info), Is.True); Assert.That(info.Overlaps(choices), Is.False);
+            if (debug.TryGetCompactControlsRect(out var controls)) Assert.That(controls.Overlaps(choices), Is.False);
+        }
+        [UnityTest] public IEnumerator IndirectConfirmationLeavesPrimaryActionsOutsideItsPanel()
+        {
+            float depth = camera.WorldToScreenPoint(battle.Player.transform.position).z;
+            camera.transform.position += battle.Player.transform.position - camera.ScreenToWorldPoint(new Vector3(Screen.width * .83f, Screen.height * .5f, depth));
+            IndirectTestSupport.Configure(battle);
+            Assert.That(input.SelectUnit(battle.Player), Is.True); Assert.That(input.BeginWeaponAttack(WeaponSlot.RightHand), Is.True);
+            Assert.That(input.TrySelectImpactCell(new Vector2Int(2, 2)), Is.True); yield return null;
+            var area = battle.Root.GetComponent<IndirectTargetUI>(); Assert.That(area.IsVisible, Is.True);
+            var actions = battle.Root.GetComponent<UnitActionUI>(); Assert.That(actions.TryGetPanelRect(out var main), Is.True);
+            Assert.That(main.Overlaps(area.PanelRect), Is.False);
+        }
+        [UnityTest] public IEnumerator CommandWheelRetainsChosenActionAndEmptyCenterDoesNotCaptureMap()
+        {
+            float depth = camera.WorldToScreenPoint(battle.Player.transform.position).z;
+            camera.transform.position += battle.Player.transform.position - camera.ScreenToWorldPoint(new Vector3(Screen.width * .6f, Screen.height * .5f, depth));
+            Assert.That(input.SelectUnit(battle.Player), Is.True); yield return null;
+            var actions = battle.Root.GetComponent<UnitActionUI>();
+            Assert.That(actions.IsCommandWheelVisible, Is.True);
+            Assert.That(actions.TryGetPanelRect(out var rect), Is.True);
+            Assert.That(actions.ContainsScreenPoint(new Vector2(rect.center.x, Screen.height - rect.center.y)), Is.False);
+            float initial = actions.SelectionAnimationSeconds;
+            Assert.That(input.BeginMove(), Is.True); yield return null;
+            Assert.That(actions.IsCommandWheelVisible, Is.True);
+            Assert.That(actions.SelectedCommand, Is.EqualTo(UnitCommandAction.Move));
+            Assert.That(actions.SelectionAnimationSeconds, Is.GreaterThanOrEqualTo(initial));
+            Assert.That(input.OpenAttackMenu(), Is.True); yield return null;
+            Assert.That(actions.SelectedCommand, Is.EqualTo(UnitCommandAction.Attack));
+            Assert.That(actions.TryGetAttackMenuRect(out var choices), Is.True);
+            Assert.That(actions.TryGetPanelRect(out rect), Is.True); Assert.That(rect.Overlaps(choices), Is.False);
+            yield return new WaitForSecondsRealtime(.1f);
+            Assert.That(input.SelectUnit(battle.Player), Is.True);
+            Assert.That(actions.SelectionAnimationSeconds, Is.LessThan(.05f), "Explicit reselection restarts the effect.");
+            Assert.That(actions.SelectedCommand, Is.EqualTo(UnitCommandAction.None));
+        }
+        [UnityTest] public IEnumerator AssignedFontsRenderBothTitlesAndLiveBodyRows()
+        {
+            JsonUtility.FromJsonOverwrite("{\"displayName\":\"Sample Cavalier\"}", battle.Player.MechaData);
+            JsonUtility.FromJsonOverwrite("{\"displayName\":\"Sample Pilot\"}", battle.Player.PilotData);
+            Assert.That(input.SelectUnit(battle.Player), Is.True); yield return null; yield return null; Canvas.ForceUpdateCanvases();
+            foreach (var path in new[] { "Identity/Unit Name", "Identity/Pilot Name", "Status Header/Status Title", "Weapon Header/Weapon Title" })
+            {
+                var text = Frame.Find(path).GetComponent<Text>();
+                Assert.That(text.font.name, Does.Contain("Saira"), path);
+                var mesh = text.canvasRenderer.GetMesh();
+                Assert.That(mesh && mesh.vertexCount > 0, Is.True, $"{path}: '{text.text}' must produce visible glyphs (font {text.font.name}, rect {text.rectTransform.rect}, lineHeight {text.font.lineHeight}, overflow {text.verticalOverflow}, active {text.isActiveAndEnabled}).");
+            }
+            foreach (var row in Rows)
+                Assert.That(row.GetComponentInChildren<Text>().font.name, Is.EqualTo("Oxanium-Regular"));
+            foreach (var row in panel.GetComponentsInChildren<UnitWeaponRowUI>())
+                Assert.That(row.transform.Find("Name").GetComponent<Text>().font.name, Is.EqualTo("Oxanium-Regular"));
+            JsonUtility.FromJsonOverwrite("{\"displayName\":\"테스트 파일럿\"}", battle.Player.PilotData);
+            yield return null; yield return null; Canvas.ForceUpdateCanvases();
+            var pilot = Frame.Find("Identity/Pilot Name").GetComponent<Text>();
+            Assert.That(pilot.text, Is.EqualTo("테스트 파일럿"));
+            Assert.That(pilot.font.name, Does.Not.Contain("Saira"));
+            Assert.That(pilot.canvasRenderer.GetMesh().vertexCount, Is.GreaterThan(0));
+        }
+        [UnityTest] public IEnumerator WeaponRowsKeepDamagedArmsRedAndUpdateResources()
+        {
+            input.SelectUnit(battle.Player); yield return null;
+            Assert.That(panel.GetComponentsInChildren<UnitWeaponRowUI>().Length, Is.EqualTo(3));
+            battle.Player.Health.ApplyDamage(TargetBodyPart.RightArm, int.MaxValue); yield return null;
+            var row = panel.GetComponentsInChildren<UnitWeaponRowUI>().Single(r => r.Slot == WeaponSlot.RightHand);
+            Assert.That(row.IsDisabled, Is.True); Assert.That(row.StatusText, Is.EqualTo("사용 불가"));
+            Assert.That(row.NameColor.r, Is.GreaterThan(row.NameColor.g * 2));
+            Assert.That(input.BeginWeaponAttack(WeaponSlot.RightHand), Is.False);
+            battle.Player.ActionPoints.TrySpend(5); yield return null;
+            var left = panel.GetComponentsInChildren<UnitWeaponRowUI>().Single(r => r.Slot == WeaponSlot.LeftHand);
+            Assert.That(left.IsDisabled, Is.False); Assert.That(left.StatusText, Is.EqualTo("AP 부족"));
+            Assert.That(left.ResourceText, Does.Contain("6/6"));
+            input.SelectUnit(battle.Enemy); yield return null;
+            Assert.That(panel.GetComponentsInChildren<UnitWeaponRowUI>().All(r => !r.IsDisabled), Is.True);
+        }
+        [UnityTest] public IEnumerator TwoHandWeaponHasOneRowAndFollowsHandTransfer()
+        {
+            battle.Player.GetComponent<UnitWeaponLoadout>().TryConfigure(null, GripMode.OneHand, battle.Weapon, GripMode.TwoHands);
+            input.SelectUnit(battle.Player); yield return null;
+            Assert.That(panel.GetComponentsInChildren<UnitWeaponRowUI>().Length, Is.EqualTo(2));
+            battle.Player.Health.ApplyDamage(TargetBodyPart.RightArm, int.MaxValue); yield return null;
+            var rows = panel.GetComponentsInChildren<UnitWeaponRowUI>(); Assert.That(rows.Length, Is.EqualTo(2));
+            Assert.That(rows.Any(r => r.Slot == WeaponSlot.LeftHand && !r.IsDisabled), Is.True);
+            Canvas.ForceUpdateCanvases(); Assert.That(Frame.rect.height, Is.LessThan(690));
+        }
         private T DebugValue<T>(string property)
         {
             var value = typeof(BattleDebugUI).GetProperty(property); Assert.That(value, Is.Not.Null, property);

@@ -75,6 +75,8 @@ namespace MechaXCOM.Tests
         public void Dispose()
         {
             if (!Root) return;
+            // Stop visibility callbacks before destroying units and range renderers together.
+            foreach (var input in Root.GetComponentsInChildren<PlayerInputController>(true)) input.enabled = false;
             if (Application.isPlaying) Object.Destroy(Root); else Object.DestroyImmediate(Root);
         }
     }
